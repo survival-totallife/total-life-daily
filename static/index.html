@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wellness Guide</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Search -->
+        <header class="header">
+            <h1 class="logo">🌿 Wellness & Health Guide</h1>
+            <form id="search-form" class="search-form">
+                <div class="search-container">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        class="search-input" 
+                        placeholder="Ask a wellness question..."
+                        autocomplete="off"
+                        required
+                    >
+                    <button type="submit" class="search-button">
+                        <span class="search-icon">→</span>
+                    </button>
+                </div>
+            </form>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Welcome State (shown initially) -->
+            <div id="welcome-state" class="welcome-state">
+                <p class="welcome-text">Ask me about sleep, nutrition, or vitamins!</p>
+                <div class="example-queries">
+                    <button class="example-btn" data-query="What are the benefits of turmeric?">Benefits of turmeric</button>
+                    <button class="example-btn" data-query="How can I improve my sleep?">Improve sleep</button>
+                    <button class="example-btn" data-query="Tell me about Vitamin D">Vitamin D</button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state" class="loading-state hidden">
+                <div class="thinking-indicator">
+                    <span class="thinking-dot"></span>
+                    <span class="thinking-dot"></span>
+                    <span class="thinking-dot"></span>
+                </div>
+                <p class="thinking-text">Thinking...</p>
+            </div>
+
+            <!-- Results State -->
+            <div id="results-state" class="results-state hidden">
+                <!-- Status Indicator -->
+                <div class="status-indicator">
+                    <span class="status-icon">✓</span>
+                    <span class="status-text">Finished thinking</span>
+                </div>
+
+                <!-- Answer Section -->
+                <article class="answer-section">
+                    <div id="answer-content" class="answer-content"></div>
+                </article>
+
+                <!-- References Section -->
+                <section class="references-section">
+                    <button id="references-toggle" class="references-toggle">
+                        <span class="references-icon">📚</span>
+                        <span class="references-title">References</span>
+                        <span class="toggle-arrow">▼</span>
+                    </button>
+                    <div id="references-list" class="references-list"></div>
+                </section>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="error-state hidden">
+                <p class="error-icon">⚠️</p>
+                <p class="error-message" id="error-message">Something went wrong. Please try again.</p>
+                <button id="retry-btn" class="retry-btn">Try Again</button>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Powered by AI • For informational purposes only</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
