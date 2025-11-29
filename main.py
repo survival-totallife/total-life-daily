@@ -5,7 +5,6 @@ A health/wellness chatbot that retrieves PubMed articles and answers questions b
 
 import os
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from typing import List, Optional
 from typing_extensions import TypedDict
 import httpx
@@ -13,7 +12,6 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -166,56 +164,6 @@ def parse_pubmed_xml(xml_content: str) -> List[dict]:
 
 
 # =============================================================================
-# FALLBACK MOCK DATA (used when PubMed API fails)
-# =============================================================================
-
-FALLBACK_ARTICLES: List[dict] = [
-    {
-        "id": "MOCK001",
-        "title": "Sleep Hygiene Practices for Better Rest",
-        "content": (
-            "Good sleep hygiene involves maintaining a consistent sleep schedule by going to bed "
-            "and waking up at the same time every day. Avoiding screens and blue light exposure "
-            "at least one hour before bedtime significantly improves sleep quality. Creating a cool, "
-            "dark, and quiet sleeping environment helps the body prepare for restorative rest."
-        ),
-        "authors": "Wellness Guide Team",
-        "journal": "Internal Knowledge Base",
-        "year": "2024",
-        "url": "#"
-    },
-    {
-        "id": "MOCK002",
-        "title": "The Health Benefits of Turmeric",
-        "content": (
-            "Turmeric contains curcumin, a powerful anti-inflammatory compound that may help reduce "
-            "chronic inflammation in the body. Studies suggest turmeric can aid digestion and support "
-            "gut health when consumed regularly. Additionally, curcumin has antioxidant properties "
-            "that may protect cells from oxidative damage and support brain function."
-        ),
-        "authors": "Wellness Guide Team",
-        "journal": "Internal Knowledge Base",
-        "year": "2024",
-        "url": "#"
-    },
-    {
-        "id": "MOCK003",
-        "title": "Vitamin D: The Sunshine Vitamin",
-        "content": (
-            "Vitamin D is essential for calcium absorption and maintaining strong bones and teeth. "
-            "The body produces Vitamin D naturally when skin is exposed to sunlight, though many people "
-            "are deficient, especially in winter months. Supplementation or consuming Vitamin D-rich "
-            "foods like fatty fish and fortified dairy can help maintain adequate levels."
-        ),
-        "authors": "Wellness Guide Team",
-        "journal": "Internal Knowledge Base",
-        "year": "2024",
-        "url": "#"
-    },
-]
-
-
-# =============================================================================
 # LANGGRAPH STATE DEFINITION
 # =============================================================================
 
@@ -225,7 +173,6 @@ class AgentState(TypedDict):
     search_query: Optional[str]      # Enhanced search query for PubMed
     context: List[dict]              # Retrieved articles from PubMed
     answer: str                      # Final generated response
-    used_fallback: bool              # Whether fallback data was used
 
 
 # =============================================================================
@@ -241,30 +188,47 @@ def enhance_query_node(state: AgentState) -> dict:
     api_key = os.getenv("GOOGLE_API_KEY")
     llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
     
-    system_prompt = """You are a medical search query optimizer. Your job is to convert natural language health questions into effective PubMed search queries.
+    system_prompt = """You are a medical search query optimizer for PubMed. Convert natural language health questions into effective PubMed search queries.
 
-RULES:
-1. Extract key medical/health concepts from the question
-2. Use proper medical terminology where appropriate
-3. Use Boolean operators (AND, OR) to connect related terms
-4. Keep the query concise but comprehensive
-5. Output ONLY the search query, nothing else
-6. Do not include quotes unless searching for an exact phrase
+CRITICAL RULES:
+1. Keep queries SIMPLE - use 2-4 key medical terms connected with AND/OR
+2. Prefer single words or short 2-word terms over long phrases
+3. Use standard medical terminology (e.g., "hypertension" not "high blood pressure")
+4. Also include the scientific name if a supplement/herb is mentioned (e.g., turmeric → curcumin)
+5. Output ONLY the search query, nothing else - no quotes, no explanation
 
-EXAMPLES:
-- "What helps with sleep?" → "sleep quality improvement OR sleep hygiene OR insomnia treatment"
-- "Is turmeric good for you?" → "turmeric health benefits OR curcumin therapeutic effects"
-- "How much vitamin D do I need?" → "vitamin D recommended intake OR vitamin D dosage OR vitamin D deficiency"
-- "Does exercise help anxiety?" → "exercise anxiety reduction OR physical activity mental health"
+GOOD EXAMPLES (simple, somewhat broad):
+- "What helps with sleep?" → sleep quality OR insomnia treatment
+- "Is turmeric good for inflammation?" → curcumin OR turmeric AND inflammation
+- "How much vitamin D do I need?" → vitamin D AND (dosage OR supplementation OR requirements)
+- "Does exercise help anxiety?" → exercise AND anxiety
+- "What are the benefits of omega-3?" → omega-3 AND health AND benefits
+- "Is coffee bad for your heart?" → caffeine AND cardiovascular
+- "How to lower cholesterol naturally?" → cholesterol AND (diet OR lifestyle OR natural)
+- "What causes headaches?" → headache AND (causes OR etiology OR triggers)
+
+BAD EXAMPLES (too specific, will return zero results):
+- "sleep quality improvement techniques for adults" 
+- "turmeric health benefits for inflammation reduction"
+- "natural ways to reduce high blood pressure without medication"
 """
 
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Convert this question to a PubMed search query: {state['question']}")
+        HumanMessage(content=f"Convert this to a PubMed search query: {state['question']}")
     ]
     
-    response = llm.invoke(messages)
-    search_query = response.content.strip()
+    try:
+        response = llm.invoke(messages)
+        search_query = response.content.strip()
+        
+        # Remove any quotes the LLM might have added around the query
+        search_query = search_query.strip('"\'')
+        
+    except Exception as e:
+        # Fallback: use the original question as a simple search
+        print(f"[DEBUG] LLM query enhancement failed: {e}")
+        search_query = state['question']
     
     print(f"[DEBUG] Original question: {state['question']}")
     print(f"[DEBUG] Enhanced search query: {search_query}")
@@ -275,88 +239,97 @@ EXAMPLES:
 async def retrieve_node(state: AgentState) -> dict:
     """
     Retrieves relevant articles from PubMed using the enhanced search query.
-    Falls back to mock data if the API call fails.
+    Uses a simplified query as fallback if no results found.
     """
     search_query = state.get("search_query") or state["question"]
+    original_question = state["question"]
     
     try:
-        # Search PubMed for article IDs
+        # First attempt: Use the enhanced search query
         pmids = await search_pubmed(search_query, max_results=5)
         
+        # Second attempt: If no results, try a simplified version (just key words from original question)
         if not pmids:
-            print(f"[DEBUG] No PubMed results found, using fallback data")
-            return {"context": FALLBACK_ARTICLES, "used_fallback": True}
+            print(f"[DEBUG] No results with enhanced query, trying simplified search...")
+            # Extract simple keywords - remove common words and use original question
+            simplified_query = " ".join([
+                word for word in original_question.split() 
+                if len(word) > 3 and word.lower() not in 
+                {'what', 'how', 'does', 'help', 'with', 'the', 'for', 'and', 'are', 'is', 'can', 'should', 'would', 'could', 'about', 'your', 'have', 'been', 'this', 'that', 'from', 'they', 'will', 'good', 'best', 'much', 'many'}
+            ])
+            if simplified_query:
+                print(f"[DEBUG] Simplified query: {simplified_query}")
+                pmids = await search_pubmed(simplified_query, max_results=5)
+        
+        if not pmids:
+            print(f"[DEBUG] No PubMed results found")
+            return {"context": []}
         
         # Fetch full article details
         articles = await fetch_pubmed_articles(pmids)
         
         if not articles:
-            print(f"[DEBUG] Failed to fetch article details, using fallback data")
-            return {"context": FALLBACK_ARTICLES, "used_fallback": True}
+            print(f"[DEBUG] Failed to fetch article details")
+            return {"context": []}
         
         print(f"[DEBUG] Retrieved {len(articles)} articles from PubMed")
-        return {"context": articles, "used_fallback": False}
+        return {"context": articles}
         
     except Exception as e:
-        print(f"[DEBUG] PubMed API error: {e}, using fallback data")
-        return {"context": FALLBACK_ARTICLES, "used_fallback": True}
+        print(f"[DEBUG] PubMed API error: {e}")
+        return {"context": []}
 
 
-def generate_node(state: AgentState) -> dict:
+def generate_research_node(state: AgentState) -> dict:
     """
-    Generates an answer using the Gemini LLM based on retrieved PubMed context.
-    Includes source citations with PMIDs and mentions peer-reviewed research.
+    Generates an answer using PubMed research articles.
+    This node is called when we have retrieved articles from PubMed.
+    
+    Responsibilities:
+    - Answer based on the provided research articles
+    - Include proper citations using [Source: PMID] format
+    - Synthesize information across multiple articles
+    
+    NOTE: The LLM often responds with Markdown formatting (e.g., **bold text**, *italics*).
+    The frontend should parse and render this Markdown appropriately.
     """
+    print(f"[DEBUG] Using RESEARCH generation path")
+    
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     api_key = os.getenv("GOOGLE_API_KEY")
     llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
     
-    # Build the system prompt
-    used_fallback = state.get("used_fallback", False)
-    
-    if used_fallback:
-        source_note = "Note: These are from an internal knowledge base as the medical literature search was unavailable."
-    else:
-        source_note = "These are from peer-reviewed medical literature indexed in PubMed."
-    
-    system_prompt = f"""You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions based ONLY on the provided research articles.
+    system_prompt = """You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions based on the provided research articles.
 
-{source_note}
+These are from peer-reviewed medical literature indexed in PubMed.
 
 IMPORTANT RULES:
-1. Only use information from the provided articles to answer questions.
+1. Base your answer on the provided research articles and cite them appropriately.
 2. CITATION FORMAT IS CRITICAL: Always cite sources using EXACTLY this format: [Source: PMID] where PMID is a single article ID.
    - CORRECT: "Vitamin D is important [Source: 22716179]. It helps with calcium absorption [Source: 36902073]."
    - WRONG: "Vitamin D is important [Source: 22716179, 36902073]." (DO NOT combine multiple PMIDs in one bracket!)
    - WRONG: "[Source: 22716179, 36902073]" (NEVER do this!)
    - If citing multiple sources for the same fact, use separate brackets: [Source: 22716179] [Source: 36902073]
-3. If the provided context does not contain relevant information to answer the question, respond with: "I couldn't find specific research on that topic. Please try rephrasing your question."
-4. Be warm, encouraging, and supportive in your tone.
-5. Keep answers concise but informative.
-6. Synthesize information across articles rather than just summarizing each one.
-7. Remind users that this is general health information and they should consult healthcare providers for personal medical advice."""
+3. Be warm, encouraging, and supportive in your tone.
+4. Keep answers concise but informative.
+5. Synthesize information across articles rather than just summarizing each one.
+6. Remind users that this is general health information and they should consult healthcare providers for personal medical advice."""
 
-    # Format the context for the LLM
     context = state["context"]
     question = state["question"]
     
-    if context:
-        context_text = "\n\n".join([
-            f"PMID: {article['id']}\nTitle: {article['title']}\nAuthors: {article.get('authors', 'Unknown')}\nJournal: {article.get('journal', 'Unknown')}\nYear: {article.get('year', 'Unknown')}\nAbstract: {article['content']}"
-            for article in context
-        ])
-        user_message = f"""Based on the following research articles, please answer the user's question.
+    # Format articles for the LLM
+    context_text = "\n\n".join([
+        f"PMID: {article['id']}\nTitle: {article['title']}\nAuthors: {article.get('authors', 'Unknown')}\nJournal: {article.get('journal', 'Unknown')}\nYear: {article.get('year', 'Unknown')}\nAbstract: {article['content']}"
+        for article in context
+    ])
+    
+    user_message = f"""Based on the following research articles, please answer the user's question.
 
 RESEARCH ARTICLES:
 {context_text}
 
 USER QUESTION: {question}"""
-    else:
-        user_message = f"""No relevant articles were found for this question.
-
-USER QUESTION: {question}
-
-Please respond appropriately indicating you couldn't find relevant research."""
 
     messages = [
         SystemMessage(content=system_prompt),
@@ -366,6 +339,66 @@ Please respond appropriately indicating you couldn't find relevant research."""
     response = llm.invoke(messages)
     
     return {"answer": response.content}
+
+
+def generate_general_node(state: AgentState) -> dict:
+    """
+    Generates a general wellness answer without research citations.
+    This node is called when no PubMed articles were found.
+    
+    Responsibilities:
+    - Provide helpful general wellness guidance
+    - DO NOT include any citations (we have no sources)
+    - Be transparent that this is general knowledge, not research-backed
+    
+    NOTE: The LLM often responds with Markdown formatting (e.g., **bold text**, *italics*).
+    The frontend should parse and render this Markdown appropriately.
+    """
+    print(f"[DEBUG] Using GENERAL generation path (no research articles found)")
+    
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    api_key = os.getenv("GOOGLE_API_KEY")
+    llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+    
+    system_prompt = """You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions using your general knowledge.
+
+IMPORTANT RULES:
+1. Be warm, encouraging, and supportive in your tone.
+2. Provide helpful, general wellness information based on widely accepted health guidance.
+3. Keep answers concise but informative.
+4. DO NOT include any [Source: ...] citations since you don't have research articles to reference.
+5. Start your response with a brief note like: "While I couldn't find specific research articles on this topic, here's what I can share:"
+6. Always remind users that this is general health information and they should consult healthcare providers for personal medical advice.
+7. If the question is outside of health/wellness topics, politely redirect the conversation back to wellness."""
+
+    question = state["question"]
+    
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=question)
+    ]
+    
+    response = llm.invoke(messages)
+    
+    return {"answer": response.content}
+
+
+def route_by_context(state: AgentState) -> str:
+    """
+    Router function that determines which generation path to take.
+    
+    Returns:
+        "has_research" - if we have PubMed articles to cite
+        "no_research" - if no articles were found
+    """
+    context = state.get("context", [])
+    
+    if context and len(context) > 0:
+        print(f"[DEBUG] Router: Found {len(context)} articles -> routing to RESEARCH path")
+        return "has_research"
+    else:
+        print(f"[DEBUG] Router: No articles found -> routing to GENERAL path")
+        return "no_research"
 
 
 # =============================================================================
@@ -379,13 +412,26 @@ def build_graph():
     # Add nodes
     graph_builder.add_node("enhance_query", enhance_query_node)
     graph_builder.add_node("retrieve", retrieve_node)
-    graph_builder.add_node("generate", generate_node)
+    graph_builder.add_node("generate_research", generate_research_node)
+    graph_builder.add_node("generate_general", generate_general_node)
     
-    # Define the flow: START -> enhance_query -> retrieve -> generate -> END
+    # Define the flow: START -> enhance_query -> retrieve
     graph_builder.add_edge(START, "enhance_query")
     graph_builder.add_edge("enhance_query", "retrieve")
-    graph_builder.add_edge("retrieve", "generate")
-    graph_builder.add_edge("generate", END)
+    
+    # Conditional routing after retrieve: choose generation path based on context
+    graph_builder.add_conditional_edges(
+        "retrieve",
+        route_by_context,
+        {
+            "has_research": "generate_research",
+            "no_research": "generate_general"
+        }
+    )
+    
+    # Both generation paths lead to END
+    graph_builder.add_edge("generate_research", END)
+    graph_builder.add_edge("generate_general", END)
     
     # Compile and return
     return graph_builder.compile()
@@ -405,25 +451,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# =============================================================================
-# TEMPORARY FRONTEND SETUP (remove this section when integrating real frontend)
-# =============================================================================
-# CORS middleware - allows frontend to access API
+# CORS middleware - allows frontend to access API from different origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["*"],  # Configure this for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount static files directory for temporary frontend
-# Access at: http://localhost:8000/static/index.html
-STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-# =============================================================================
-# END TEMPORARY FRONTEND SETUP
-# =============================================================================
 
 
 class ChatRequest(BaseModel):
@@ -431,16 +466,20 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class ArticleSource(BaseModel):
+    """Model for a PubMed article source."""
+    id: str
+    title: str
+    authors: str
+    journal: str
+    year: str
+    url: str
+
+
 class ChatResponse(BaseModel):
     """Response model for chat endpoint."""
     answer: str
-
-
-class ChatDebugResponse(BaseModel):
-    """Debug response model that includes retrieved context."""
-    answer: str
-    retrieved_articles: List[dict]
-    question: str
+    sources: List[ArticleSource]
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -449,53 +488,29 @@ async def chat(request: ChatRequest):
     Process a wellness-related question and return an AI-generated answer
     based on PubMed research articles.
     """
-    # Initialize the state with the user's question
     initial_state = {
         "question": request.message,
         "search_query": None,
         "context": [],
-        "answer": "",
-        "used_fallback": False
-    }
-    
-    # Run the graph
-    result = await wellness_graph.ainvoke(initial_state)
-    
-    return ChatResponse(answer=result["answer"])
-
-
-@app.post("/chat/debug", response_model=ChatDebugResponse)
-async def chat_debug(request: ChatRequest):
-    """
-    Debug version of chat endpoint - shows retrieved articles alongside the answer.
-    """
-    initial_state = {
-        "question": request.message,
-        "search_query": None,
-        "context": [],
-        "answer": "",
-        "used_fallback": False
+        "answer": ""
     }
     
     result = await wellness_graph.ainvoke(initial_state)
     
-    return ChatDebugResponse(
-        answer=result["answer"],
-        retrieved_articles=result["context"],
-        question=result["question"]
-    )
-
-
-@app.get("/")
-async def root():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "Wellness Chatbot API"}
-
-
-@app.get("/articles/fallback")
-async def list_fallback_articles():
-    """Returns fallback articles used when PubMed API is unavailable."""
-    return {"articles": FALLBACK_ARTICLES}
+    # Convert context articles to ArticleSource models
+    sources = [
+        ArticleSource(
+            id=article["id"],
+            title=article["title"],
+            authors=article.get("authors", "Unknown"),
+            journal=article.get("journal", "Unknown"),
+            year=article.get("year", "Unknown"),
+            url=article["url"]
+        )
+        for article in result.get("context", [])
+    ]
+    
+    return ChatResponse(answer=result["answer"], sources=sources)
 
 
 # =============================================================================

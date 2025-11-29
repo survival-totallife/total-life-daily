@@ -62,14 +62,31 @@ function showState(stateName) {
 }
 
 // =============================================================================
-// CITATION PARSING
+// MARKDOWN & CITATION PARSING
 // =============================================================================
 
 /**
+ * Parses basic Markdown formatting into HTML
+ * Handles: **bold**, *italic*, and combinations
+ * @param {string} text - The raw text with Markdown
+ * @returns {string} HTML with parsed formatting
+ */
+function parseMarkdown(text) {
+    // Parse **bold** text (must be done before single asterisks)
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Parse *italic* text
+    text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    return text;
+}
+
+/**
  * Parses the answer text and converts [Source: N] citations to clickable superscripts
+ * Also handles Markdown formatting (bold, italic)
  * @param {string} text - The raw answer text from the API
  * @param {Array} articles - The retrieved articles array
- * @returns {string} HTML with parsed citations
+ * @returns {string} HTML with parsed citations and formatting
  */
 function parseCitations(text, articles) {
     // Create a map of article IDs for quick lookup (convert to string for consistent matching)
@@ -95,7 +112,7 @@ function parseCitations(text, articles) {
     });
     
     // Second pass: replace citations with superscript links
-    const parsedText = text.replace(citationRegex, (match, sourceIdStr) => {
+    let parsedText = text.replace(citationRegex, (match, sourceIdStr) => {
         const sourceId = sourceIdStr.trim();
         const displayNum = displayNumberMap.get(sourceId);
         
@@ -104,6 +121,9 @@ function parseCitations(text, articles) {
         }
         return match; // Keep original if not found
     });
+    
+    // Parse Markdown formatting (bold, italic)
+    parsedText = parseMarkdown(parsedText);
     
     // Convert newlines to paragraphs for better formatting
     const paragraphs = parsedText
