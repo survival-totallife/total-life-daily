@@ -1,110 +1,224 @@
 # Total Life Daily
 
-A health and wellness blog platform mirroring [daily.totallife.com](https://daily.totallife.com/), featuring
-science-backed content built on Total Life's five essential pillars: Nourishment, Restoration, Mindset, Relationships,
-and Vitality.
+A full-stack health and wellness platform with AI-powered chatbot and article management.
+
+## 🚀 Quick Start (Docker)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/survival-totallife/total-life-daily.git
+cd total-life-daily
+
+# 2. Set up environment variables
+cp .env.example .env
+# Edit .env and add your GOOGLE_API_KEY
+
+# 3. Start everything with Docker
+docker-compose up --build
+```
+
+**Or use the start script:**
+- Windows: Double-click `start.bat`
+- Mac/Linux: `chmod +x start.sh && ./start.sh`
+
+**That's it!** Access the application:
+- **Frontend**: http://localhost:3000
+- **API Documentation**: http://localhost:8000/docs
+
+**Test Pages** (temporary, for functionality verification):
+- Article CRUD: http://localhost:3000/test-articles
+- AI Chat: http://localhost:3000/test-chat
+
+📖 See [QUICKSTART.md](./QUICKSTART.md) for detailed setup instructions.
+
+---
 
 ## Project Structure
 
 ```
 total-life-daily/
-├── frontend/          # Next.js web application
-├── backend/           # Python FastAPI server (coming soon)
-└── README.md          # This file
+├── backend/           # FastAPI backend service
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── README.md
+├── frontend/          # Frontend service (to be added)
+└── docker-compose.yml # Docker orchestration
 ```
 
-## Quick Start
+## Features
 
-### Prerequisites
+- **AI Wellness Chatbot**: RAG-powered chatbot using Google Gemini and PubMed research
+- **Article Management**: Full CRUD API for markdown articles
+- **SQLite Database**: Lightweight storage with easy PostgreSQL migration
+- **Docker Ready**: One command to start everything
 
-Before you begin, make sure you have these installed on your computer:
+## Docker Commands
 
-1. **Node.js** (v18 or higher)
-    - Download from: https://nodejs.org/
-    - Choose the LTS (Long Term Support) version
-    - Run the installer and follow the prompts
-    - Restart your terminal after installation
+```bash
+# Start all services
+docker-compose up --build
 
-2. **npm** (comes with Node.js)
-    - Verify installation by running: `node --version` and `npm --version`
+# Run in background
+docker-compose up -d --build
 
-### Running the Frontend (Website)
+# View logs
+docker-compose logs -f
 
-1. **Open a terminal** (Command Prompt, PowerShell, or Terminal)
+# Stop services
+docker-compose down
 
-2. **Navigate to the frontend folder:**
-   ```bash
-   cd frontend
-   ```
+# Rebuild after code changes
+docker-compose up --build
 
-3. **Install dependencies** (only needed the first time, or when packages change):
-   ```bash
-   npm install
-   ```
-   This downloads all the required packages. It may take a few minutes.
+# Remove database (clean start)
+docker-compose down -v
+```
 
-4. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
+## Local Development (without Docker)
 
-5. **View the website:**
-    - Open your web browser
-    - Go to: **http://localhost:3000**
-    - You should see the Total Life Daily homepage!
+If you prefer to run services individually:
 
-6. **Stop the server:**
-    - Go back to your terminal
-    - Press `Ctrl + C` to stop the server
+### Backend
 
-### Common Commands
-
-| Command         | What it does                                    |
-|-----------------|-------------------------------------------------|
-| `npm install`   | Downloads all required packages                 |
-| `npm run dev`   | Starts the development server at localhost:3000 |
-| `npm run build` | Creates a production-ready build                |
-| `npm run start` | Runs the production build                       |
-| `npm run lint`  | Checks code for errors and style issues         |
-
-### Troubleshooting
-
-**"npm is not recognized"**
-
-- Node.js isn't installed or not in your PATH
-- Try reinstalling Node.js and restart your terminal
-
-**"Port 3000 is already in use"**
-
-- Another application is using port 3000
-- Either close that application, or run: `npm run dev -- -p 3001` to use a different port
-
-**Page shows errors**
-
-- Try deleting `node_modules` folder and `package-lock.json`, then run `npm install` again
-
-**Changes not showing up**
-
-- The dev server has hot-reload, changes should appear automatically
-- If not, try refreshing the page or restarting the dev server
-
-## Tech Stack
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
 
 ### Frontend
 
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - UI component library
-- **Framer Motion** - Animation library
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-### Backend (Coming Soon)
+## Endpoints
 
-- **FastAPI** - Python web framework
-- **Python 3.11+** - Backend language
+### Backend (Port 8000)
 
-## Documentation
+- **Hello endpoint**: http://localhost:8000/hello
+- **Chat endpoint**: http://localhost:8000/chat
+- **API docs**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-- [Frontend README](./frontend/README.md) - Detailed frontend documentation
-- [Design System](./frontend/DESIGN_SYSTEM.md) - Colors, typography, and component styles
+### Frontend (Port 3000)
 
+- **App**: http://localhost:3000
+
+## Development
+
+### Backend
+
+See [backend/README.md](./backend/README.md) for detailed backend documentation.
+
+### Frontend
+
+See [frontend/README.md](./frontend/README.md) for detailed frontend documentation.
+
+## Running with Docker
+
+### Quick Start (Both Services)
+
+```bash
+# Start both backend and frontend
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+### Individual Services
+
+#### Backend Only
+
+```bash
+docker-compose up -d backend
+```
+
+#### Frontend Only
+
+```bash
+docker-compose up -d frontend
+```
+
+### Rebuild After Code Changes
+
+```bash
+# Rebuild and restart all services
+docker-compose up -d --build
+
+# Rebuild specific service
+docker-compose up -d --build backend
+docker-compose up -d --build frontend
+```
+
+## Docker Commands
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Rebuild and start
+docker-compose up -d --build
+
+# View running containers
+docker-compose ps
+
+# View logs
+docker-compose logs -f backend
+
+# Stop all services
+docker-compose down
+
+# Remove all containers and volumes
+docker-compose down -v
+```
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit and add your Google API key
+GOOGLE_API_KEY=your_google_api_key_here
+```
+
+Get your Google Gemini API key: https://aistudio.google.com/apikey
+
+## Requirements
+
+- Docker
+- Docker Compose
+
+## Project Structure
+
+```
+total-life-daily/
+├── backend/              # FastAPI backend
+│   ├── main.py          # API endpoints
+│   ├── database.py      # Database config
+│   ├── models.py        # SQLAlchemy models
+│   ├── crud.py          # CRUD operations
+│   └── search_agent.py  # AI chatbot logic
+├── frontend/            # Next.js frontend
+│   └── app/
+│       ├── page.tsx              # Homepage
+│       ├── test-articles/        # Article CRUD test
+│       └── test-chat/            # Chat test
+├── docker-compose.yml   # Docker orchestration
+└── .env                 # Environment variables
+```
+
+## License
+
+MIT
