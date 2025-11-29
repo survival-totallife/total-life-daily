@@ -1,6 +1,6 @@
-# Wellness Chatbot API Documentation
+# Total Life Daily API Documentation
 
-This document provides everything needed to integrate the Wellness Chatbot backend into your frontend application.
+This document provides everything needed to integrate the Total Life Daily backend into your frontend application.
 
 ---
 
@@ -23,14 +23,27 @@ GEMINI_MODEL=gemini-2.0-flash
 ### Running the Backend
 
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the server
 uvicorn main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
 
+**API Documentation:** http://localhost:8000/docs (interactive Swagger UI)
+
 ---
 
-## API Endpoint
+## Table of Contents
+
+1. [Wellness Chatbot API](#wellness-chatbot-api)
+2. [Article Management API](#article-management-api)
+
+---
+
+## Wellness Chatbot API
 
 ### POST `/chat`
 
@@ -258,5 +271,227 @@ Feel free to change anything if you think it would improve it
 
 - [ ] **Upgrade Gemini Model:** Currently using `gemini-2.0-flash` which is fast but less capable. Update the `GEMINI_MODEL` environment variable to switch models.
 - [ ] **Set API Key Cost Limits:** Add a spending/usage limit to the Gemini API key in the Google Cloud Console to prevent unexpected charges. (incase someone spams the api)
+
+---
+
+## Article Management API
+
+### Overview
+
+RESTful API for managing blog articles. Articles are stored in markdown format with automatic timestamp tracking.
+
+**Database Schema:**
+- `article_id` (Integer, Primary Key, Auto-increment)
+- `article_markdown` (Text, Required)
+- `created_at` (DateTime, Auto-generated)
+- `updated_at` (DateTime, Auto-updated)
+
+---
+
+### POST `/articles`
+
+Create a new article.
+
+**Request:**
+
+```json
+{
+  "article_markdown": "# Article Title\n\nArticle content in **markdown** format..."
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+  "article_id": 1,
+  "article_markdown": "# Article Title\n\nArticle content in **markdown** format...",
+  "created_at": "2025-11-28T10:30:00",
+  "updated_at": "2025-11-28T10:30:00"
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST http://localhost:8000/articles \
+  -H "Content-Type: application/json" \
+  -d '{"article_markdown": "# My Article\n\nContent here..."}'
+```
+
+---
+
+### GET `/articles`
+
+Get all articles with pagination.
+
+**Query Parameters:**
+- `skip` (optional, default: 0) - Number of articles to skip
+- `limit` (optional, default: 100) - Maximum number of articles to return
+
+**Response (200 OK):**
+
+```json
+[
+  {
+    "article_id": 1,
+    "article_markdown": "# Article 1\n\nContent...",
+    "created_at": "2025-11-28T10:30:00",
+    "updated_at": "2025-11-28T10:30:00"
+  },
+  {
+    "article_id": 2,
+    "article_markdown": "# Article 2\n\nMore content...",
+    "created_at": "2025-11-28T11:00:00",
+    "updated_at": "2025-11-28T11:00:00"
+  }
+]
+```
+
+**Example:**
+
+```bash
+# Get first 10 articles
+curl http://localhost:8000/articles?skip=0&limit=10
+
+# Get next 10 articles
+curl http://localhost:8000/articles?skip=10&limit=10
+```
+
+---
+
+### GET `/articles/{article_id}`
+
+Get a single article by ID.
+
+**Path Parameters:**
+- `article_id` (required) - The ID of the article to retrieve
+
+**Response (200 OK):**
+
+```json
+{
+  "article_id": 1,
+  "article_markdown": "# Article Title\n\nFull article content...",
+  "created_at": "2025-11-28T10:30:00",
+  "updated_at": "2025-11-28T10:30:00"
+}
+```
+
+**Error Response (404 Not Found):**
+
+```json
+{
+  "detail": "Article not found"
+}
+```
+
+**Example:**
+
+```bash
+curl http://localhost:8000/articles/1
+```
+
+---
+
+### PUT `/articles/{article_id}`
+
+Update an existing article.
+
+**Path Parameters:**
+- `article_id` (required) - The ID of the article to update
+
+**Request:**
+
+```json
+{
+  "article_markdown": "# Updated Title\n\nUpdated content..."
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "article_id": 1,
+  "article_markdown": "# Updated Title\n\nUpdated content...",
+  "created_at": "2025-11-28T10:30:00",
+  "updated_at": "2025-11-28T15:45:00"
+}
+```
+
+**Error Response (404 Not Found):**
+
+```json
+{
+  "detail": "Article not found"
+}
+```
+
+**Example:**
+
+```bash
+curl -X PUT http://localhost:8000/articles/1 \
+  -H "Content-Type: application/json" \
+  -d '{"article_markdown": "# Updated Article\n\nNew content..."}'
+```
+
+---
+
+### DELETE `/articles/{article_id}`
+
+Delete an article.
+
+**Path Parameters:**
+- `article_id` (required) - The ID of the article to delete
+
+**Response (204 No Content):**
+
+No response body.
+
+**Error Response (404 Not Found):**
+
+```json
+{
+  "detail": "Article not found"
+}
+```
+
+**Example:**
+
+```bash
+curl -X DELETE http://localhost:8000/articles/1
+```
+
+---
+
+## Error Handling
+
+| Status Code | Meaning | Suggested Action |
+|-------------|---------|------------------|
+| 200 | Success | Process the response |
+| 201 | Created | New resource created successfully |
+| 204 | No Content | Operation successful, no content to return |
+| 404 | Not Found | Resource doesn't exist |
+| 422 | Validation Error | Check request format |
+| 500 | Server Error | Display error message, allow retry |
+
+---
+
+## Testing
+
+A test script is provided to verify all CRUD operations:
+
+```bash
+# Make sure the server is running first
+python test_articles.py
+```
+
+This will test:
+1. Creating an article
+2. Getting all articles
+3. Getting a single article
+4. Updating an article
+5. Deleting an article
 
 ---
