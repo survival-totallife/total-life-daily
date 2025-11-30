@@ -18,9 +18,9 @@ const nextConfig: NextConfig = {
                 hostname: "is1-ssl.mzstatic.com",
             },
         ],
+        qualities: [75, 90],
     },
   /* config options here */
-  reactCompiler: true,
   output: 'standalone', // Required for Docker deployment
 };
 

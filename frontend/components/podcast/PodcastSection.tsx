@@ -3,7 +3,7 @@
 import { JSX } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Youtube, Music2, Play, Headphones } from "lucide-react";
+import { Headphones, Music2, Play, Youtube } from "lucide-react";
 import { motion } from "framer-motion";
 import { ScrollReveal, StaggerContainer, StaggerItem } from "@/components/common";
 
@@ -63,6 +63,7 @@ export function PodcastSection({ featuredEpisode, totalEpisodes, playlistUrl }: 
                                     src={featuredEpisode.thumbnail.url}
                                     alt={featuredEpisode.thumbnail.alt}
                                     fill
+                                    sizes="(max-width: 1024px) 100vw, 50vw"
                                     className="object-cover group-hover:scale-105 transition-transform duration-700"
                                 />
                             ) : (

@@ -1,3 +1,8 @@
 export { HeroSection } from "./HeroSection";
 export { FeaturedSection } from "./FeaturedSection";
 export { CategorySection } from "./CategorySection";
+export { ArticleHero } from "./ArticleHero";
+export { ArticleContent } from "./ArticleContent";
+export { RelatedArticles } from "./RelatedArticles";
+export { ArticleEngagement } from "./ArticleEngagement";
+export { CommentsSection } from "./CommentsSection";
