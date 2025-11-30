@@ -1,13 +1,24 @@
 "use client";
 
-import { JSX, useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Sparkles, User, Loader2, ArrowDown } from "lucide-react";
+import { JSX, useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, ExternalLink, Send, Square, User, X } from "lucide-react";
+import Image from "next/image";
+
+interface Source {
+    id: string;
+    title: string;
+    authors: string;
+    journal: string;
+    year: string;
+    url: string;
+}
 
 interface Message {
     id: string;
     role: "user" | "assistant";
     content: string;
+    sources?: Source[];
     isStreaming?: boolean;
 }
 
@@ -16,91 +27,8 @@ interface AISearchModalProps {
     onClose: () => void;
 }
 
-// Mock AI responses for demo
-const mockResponses = [
-    `Great question! Based on the latest research in healthy aging, here are some key insights about **brain health**:
-
-## Top Foods for Brain Health
-
-1. **Fatty Fish** (Salmon, Sardines, Mackerel)
-   - Rich in omega-3 fatty acids
-   - Studies show they can slow mental decline by up to 30%
-
-2. **Blueberries** 
-   - Packed with antioxidants
-   - May delay brain aging by 2.5 years
-
-3. **Leafy Greens** (Spinach, Kale, Broccoli)
-   - High in vitamin K, lutein, and folate
-   - Associated with slower cognitive decline
-
-4. **Nuts and Seeds**
-   - Walnuts especially are great for memory
-   - Contains vitamin E which protects cells
-
-## Related Articles You Might Enjoy:
-- "She Just Ate More Salmon—You Won't Believe What Happened to Her Brain and Balance"
-- "Eat to Age Well: The 12-Year Study That Proves It's Not Too Late"
-
-Would you like me to dive deeper into any of these topics?`,
-
-    `Absolutely! **Sleep quality** is one of the most important factors for healthy aging. Here's what the science tells us:
-
-## The Science of Better Sleep
-
-### Why Sleep Matters After 50
-During deep sleep, your brain clears out toxins, including beta-amyloid proteins linked to Alzheimer's. Getting 7-8 hours of quality sleep can:
-- Improve memory consolidation
-- Boost immune function
-- Reduce inflammation
-
-### Practical Tips for Better Sleep
-
-1. **Maintain a consistent schedule** - Go to bed and wake up at the same time daily
-2. **Create a cool, dark environment** - Ideal temperature is 65-68°F
-3. **Limit screen time** - Blue light suppresses melatonin production
-4. **Try relaxation techniques** - Deep breathing or meditation before bed
-
-### The "90-Year-Old Secret"
-Studies of centenarians show they prioritize:
-- Natural light exposure during the day
-- Physical activity (but not too close to bedtime)
-- Light dinners eaten 3+ hours before sleep
-
-## Want to Learn More?
-Check out our article: "The Bedtime Secret 90-Year-Olds Know (That Could Keep Your Brain Young)"`,
-
-    `That's a wonderful question about **reducing stress naturally**! Chronic stress accelerates aging, but there are proven ways to combat it:
-
-## Natural Stress Reduction Techniques
-
-### 1. Mindfulness Meditation
-Research from Harvard shows just **8 weeks of mindfulness practice** can:
-- Reduce anxiety by 58%
-- Improve emotional regulation
-- Actually change brain structure (increased gray matter)
-
-### 2. Nature Walks
-Walking in nature for just **20-30 minutes twice a week** has been shown to:
-- Lower cortisol levels by 21%
-- Reduce depression symptoms by nearly half
-- Boost mood for up to 7 hours afterward
-
-### 3. Social Connection
-Maintaining strong friendships is crucial:
-- People with larger social circles live longer
-- Quality relationships reduce stress hormones
-- Even brief positive interactions help
-
-### 4. Breathing Exercises
-The 4-7-8 technique is particularly effective:
-- Inhale for 4 seconds
-- Hold for 7 seconds
-- Exhale for 8 seconds
-
-## Ready to Start?
-Our article "Feeling Blue? Try These Two Walks a Week—They Cut Depression and Anxiety Nearly in Half" has more practical tips!`
-];
+// API URL for backend
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Typing effect hook
 function useTypingEffect(text: string, isStreaming: boolean, speed: number = 15) {
@@ -130,34 +58,35 @@ function useTypingEffect(text: string, isStreaming: boolean, speed: number = 15)
     return displayedText;
 }
 
-// Message component with waterfall animation
+// Message component with enhanced waterfall animation
 function MessageBubble({ message, isLatest }: { message: Message; isLatest: boolean }) {
     const displayedContent = useTypingEffect(
         message.content,
         Boolean(message.isStreaming && isLatest),
-        12
+        5
     );
     const isUser = message.role === "user";
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            initial={{ opacity: 0, y: 30, scale: 0.9, x: isUser ? 30 : -30 }}
+            animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
             transition={{
                 type: "spring",
-                stiffness: 500,
-                damping: 30,
-                mass: 1
+                stiffness: 400,
+                damping: 25,
+                mass: 0.8
             }}
             className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
         >
-            {/* Avatar */}
+            {/* Avatar with pop-in animation */}
             <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.1, type: "spring", stiffness: 500 }}
-                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                initial={{ scale: 0, rotate: isUser ? 90 : -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.1, type: "spring", stiffness: 500, damping: 20 }}
+                whileHover={{ scale: 1.15 }}
+                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden ${
                     isUser
                         ? "bg-coral-500"
                         : "bg-gradient-to-br from-coral-500 to-orange-500"
@@ -166,12 +95,21 @@ function MessageBubble({ message, isLatest }: { message: Message; isLatest: bool
                 {isUser ? (
                     <User className="w-4 h-4 text-white"/>
                 ) : (
-                    <Sparkles className="w-4 h-4 text-white"/>
+                    <Image
+                        src="/chatbot.png"
+                        alt="Lilly"
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover"
+                    />
                 )}
             </motion.div>
 
-            {/* Message content */}
-            <div
+            {/* Message content with slide animation */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.8, x: isUser ? 20 : -20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                transition={{ delay: 0.15, type: "spring", stiffness: 400 }}
                 className={`max-w-[80%] ${
                     isUser
                         ? "bg-coral-500 text-white rounded-2xl rounded-tr-md px-4 py-3"
@@ -190,14 +128,58 @@ function MessageBubble({ message, isLatest }: { message: Message; isLatest: bool
                         />
                         {message.isStreaming && isLatest && (
                             <motion.span
-                                className="inline-block w-2 h-4 bg-coral-400 ml-1"
-                                animate={{ opacity: [1, 0] }}
-                                transition={{ duration: 0.5, repeat: Infinity }}
+                                className="inline-block w-2 h-4 bg-coral-400 ml-1 rounded-sm"
+                                animate={{ opacity: [1, 0.3, 1], scaleY: [1, 0.8, 1] }}
+                                transition={{ duration: 0.8, repeat: Infinity }}
                             />
+                        )}
+
+                        {/* Sources section */}
+                        {message.sources && message.sources.length > 0 && !message.isStreaming && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                                className="mt-4 pt-4 border-t border-gray-700/50"
+                            >
+                                <div className="flex items-center gap-2 mb-3">
+                                    <BookOpen className="w-4 h-4 text-coral-400"/>
+                                    <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
+                                        Research Sources ({message.sources.length})
+                                    </span>
+                                </div>
+                                <div className="space-y-2">
+                                    {message.sources.map((source, idx) => (
+                                        <motion.a
+                                            key={source.id}
+                                            href={source.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: 0.4 + idx * 0.1 }}
+                                            className="block p-3 rounded-lg bg-gray-900/50 border border-gray-700/30 hover:border-coral-500/50 hover:bg-gray-900/80 transition-all duration-200 group"
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-medium text-gray-200 line-clamp-2 group-hover:text-coral-200 transition-colors">
+                                                        {source.title}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1 truncate">
+                                                        {source.authors} • {source.journal} ({source.year})
+                                                    </p>
+                                                </div>
+                                                <ExternalLink
+                                                    className="w-3.5 h-3.5 text-gray-500 group-hover:text-coral-400 flex-shrink-0 transition-colors"/>
+                                            </div>
+                                        </motion.a>
+                                    ))}
+                                </div>
+                            </motion.div>
                         )}
                     </div>
                 )}
-            </div>
+            </motion.div>
         </motion.div>
     );
 }
@@ -205,6 +187,11 @@ function MessageBubble({ message, isLatest }: { message: Message; isLatest: bool
 // Simple markdown formatter
 function formatMarkdown(text: string): string {
     return text
+        // Source citations - ChatGPT-style superscript numbers
+        .replace(
+            /\[Source:\s*(\d+)\]/g,
+            '<a href="https://pubmed.ncbi.nlm.nih.gov/$1" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-gray-600 hover:bg-gray-500 text-gray-200 rounded-full no-underline cursor-pointer align-super transition-colors" title="View source on PubMed">$1</a>'
+        )
         // Headers
         .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold text-coral-300 mt-4 mb-2">$1</h3>')
         .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold text-coral-300 mt-4 mb-2">$1</h2>')
@@ -218,33 +205,89 @@ function formatMarkdown(text: string): string {
         .replace(/\n/g, '<br />');
 }
 
-// Loading dots animation
+// Rotating status messages for loading state
+const loadingMessages = [
+    "Lilly is thinking...",
+    "Gathering research...",
+    "Analyzing sources...",
+    "Formatting response...",
+    "Almost there...",
+];
+
+// Hook to cycle through loading messages
+function useRotatingMessage(messages: string[], intervalMs: number = 2500) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentIndex((prev) => (prev + 1) % messages.length);
+        }, intervalMs);
+
+        return () => clearInterval(interval);
+    }, [messages, intervalMs]);
+
+    return messages[currentIndex];
+}
+
+// Loading dots animation with enhanced effects
 function LoadingDots() {
+    const statusMessage = useRotatingMessage(loadingMessages, 2500);
+    
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 30, x: -30 }}
+            animate={{ opacity: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
             className="flex gap-3"
         >
-            <div
-                className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-coral-500 to-orange-500 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white"/>
-            </div>
-            <div className="bg-gray-800/80 rounded-2xl rounded-tl-md px-4 py-3 flex items-center gap-1">
+            <motion.div
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 500 }}
+                className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-coral-500 to-orange-500 flex items-center justify-center overflow-hidden">
+                <Image
+                    src="/chatbot.png"
+                    alt="Lilly"
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-cover"
+                />
+            </motion.div>
+            <motion.div
+                className="bg-gray-800/80 rounded-2xl rounded-tl-md px-4 py-3 flex items-center gap-1.5"
+                initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+            >
                 {[0, 1, 2].map((i) => (
                     <motion.div
                         key={i}
                         className="w-2 h-2 bg-coral-400 rounded-full"
-                        animate={{ y: [0, -6, 0] }}
+                        animate={{
+                            y: [0, -8, 0],
+                            scale: [1, 1.2, 1],
+                            opacity: [0.5, 1, 0.5]
+                        }}
                         transition={{
-                            duration: 0.6,
+                            duration: 0.8,
                             repeat: Infinity,
                             delay: i * 0.15,
+                            ease: "easeInOut"
                         }}
                     />
                 ))}
-            </div>
+                <motion.span
+                    key={statusMessage}
+                    className="ml-2 text-xs text-gray-500"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    {statusMessage}
+                </motion.span>
+            </motion.div>
         </motion.div>
     );
 }
@@ -253,9 +296,42 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const responseIndexRef = useRef(0);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const streamingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const currentStreamingIdRef = useRef<string | null>(null);
+
+    // Stop the current streaming/generation
+    const handleStop = useCallback(() => {
+        // Abort the fetch request if in progress
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+
+        // Clear the streaming timeout
+        if (streamingTimeoutRef.current) {
+            clearTimeout(streamingTimeoutRef.current);
+            streamingTimeoutRef.current = null;
+        }
+
+        // Mark current message as done streaming
+        if (currentStreamingIdRef.current) {
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === currentStreamingIdRef.current
+                        ? { ...msg, isStreaming: false }
+                        : msg
+                )
+            );
+            currentStreamingIdRef.current = null;
+        }
+
+        setIsLoading(false);
+        setIsStreaming(false);
+    }, []);
 
     // Auto-scroll to bottom
     const scrollToBottom = useCallback(() => {
@@ -302,7 +378,7 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isLoading) return;
+        if (!inputValue.trim() || isLoading || isStreaming) return;
 
         const userMessage: Message = {
             id: Date.now().toString(),
@@ -314,33 +390,68 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
         setInputValue("");
         setIsLoading(true);
 
-        // Simulate AI response delay
-        setTimeout(() => {
-            const mockResponse = mockResponses[responseIndexRef.current % mockResponses.length];
-            responseIndexRef.current++;
+        // Create new AbortController for this request
+        abortControllerRef.current = new AbortController();
 
+        try {
+            const res = await fetch(`${API_URL}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage.content }),
+                signal: abortControllerRef.current.signal,
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Error: ${res.statusText}`);
+            }
+
+            const data = await res.json();
+
+            const assistantMessageId = (Date.now() + 1).toString();
             const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
+                id: assistantMessageId,
                 role: "assistant",
-                content: mockResponse,
+                content: data.answer,
+                sources: data.sources || [],
                 isStreaming: true,
             };
 
             setMessages((prev) => [...prev, assistantMessage]);
             setIsLoading(false);
+            setIsStreaming(true);
+            currentStreamingIdRef.current = assistantMessageId;
 
             // Mark as done streaming after the animation completes
-            const streamDuration = mockResponse.length * 12 + 500;
-            setTimeout(() => {
+            const streamDuration = data.answer.length * 5 + 500;
+            streamingTimeoutRef.current = setTimeout(() => {
                 setMessages((prev) =>
                     prev.map((msg) =>
-                        msg.id === assistantMessage.id
+                        msg.id === assistantMessageId
                             ? { ...msg, isStreaming: false }
                             : msg
                     )
                 );
+                setIsStreaming(false);
+                currentStreamingIdRef.current = null;
+                streamingTimeoutRef.current = null;
             }, streamDuration);
-        }, 1000 + Math.random() * 500);
+        } catch (error) {
+            // Don't show error message if request was aborted
+            if (error instanceof Error && error.name === 'AbortError') {
+                setIsLoading(false);
+                return;
+            }
+
+            setIsLoading(false);
+            const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                content: `I'm sorry, I couldn't process your request. ${error instanceof Error ? error.message : 'Please try again later.'}`,
+                isStreaming: false,
+            };
+            setMessages((prev) => [...prev, errorMessage]);
+        }
     };
 
     const suggestedQuestions = [
@@ -354,13 +465,13 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* Backdrop */}
+                    {/* Backdrop with fade and blur animation */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-md z-50"
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
                         onClick={onClose}
                     />
 
@@ -370,23 +481,22 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 30
+                            duration: 0.2,
+                            ease: [0.16, 1, 0.3, 1]
                         }}
-                        className="fixed inset-4 md:inset-8 lg:inset-16 xl:inset-24 bg-gray-900 rounded-3xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-800"
+                        className="fixed inset-4 md:inset-6 lg:inset-8 xl:inset-12 bg-gray-900 rounded-3xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-800"
                     >
-                        {/* Animated background */}
+                        {/* Animated background - simplified */}
                         <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                            {/* Primary gradient orbs */}
                             <motion.div
                                 className="absolute -top-40 -left-40 w-80 h-80 bg-coral-500/10 rounded-full blur-3xl"
                                 animate={{
                                     scale: [1, 1.2, 1],
-                                    x: [0, 50, 0],
-                                    y: [0, 30, 0],
+                                    opacity: [0.1, 0.15, 0.1],
                                 }}
                                 transition={{
-                                    duration: 10,
+                                    duration: 8,
                                     repeat: Infinity,
                                     ease: "easeInOut",
                                 }}
@@ -395,8 +505,19 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
                                 className="absolute -bottom-40 -right-40 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl"
                                 animate={{
                                     scale: [1.2, 1, 1.2],
-                                    x: [0, -50, 0],
-                                    y: [0, -30, 0],
+                                    opacity: [0.15, 0.1, 0.15],
+                                }}
+                                transition={{
+                                    duration: 8,
+                                    repeat: Infinity,
+                                    ease: "easeInOut",
+                                }}
+                            />
+                            {/* Center glow */}
+                            <motion.div
+                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-coral-500/5 rounded-full blur-3xl"
+                                animate={{
+                                    scale: [1, 1.1, 1],
                                 }}
                                 transition={{
                                     duration: 10,
@@ -404,72 +525,96 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
                                     ease: "easeInOut",
                                 }}
                             />
+
+                            {/* Subtle twinkling stars - reduced count */}
+                            {[...Array(10)].map((_, i) => (
+                                <motion.div
+                                    key={`star-${i}`}
+                                    className="absolute rounded-full bg-white/50"
+                                    style={{
+                                        left: `${10 + (i * 8)}%`,
+                                        top: `${15 + (i * 7) % 70}%`,
+                                        width: '2px',
+                                        height: '2px',
+                                    }}
+                                    animate={{
+                                        opacity: [0.2, 0.5, 0.2],
+                                    }}
+                                    transition={{
+                                        duration: 3,
+                                        repeat: Infinity,
+                                        delay: i * 0.3,
+                                        ease: "easeInOut",
+                                    }}
+                                />
+                            ))}
+
+                            {/* Shimmer line effect */}
+                            <div
+                                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-coral-500/30 to-transparent"/>
                         </div>
 
                         {/* Header */}
-                        <motion.div
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="relative flex items-center justify-between px-6 py-4 border-b border-gray-800"
-                        >
+                        <div className="relative flex items-center justify-between px-6 py-4 border-b border-gray-800">
                             <div className="flex items-center gap-3">
-                                <motion.div
-                                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-coral-500 to-orange-500 flex items-center justify-center"
-                                    animate={{ rotate: [0, 5, -5, 0] }}
-                                    transition={{
-                                        duration: 4,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                    }}
-                                >
-                                    <Sparkles className="w-5 h-5 text-white"/>
-                                </motion.div>
+                                <div
+                                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-coral-500 to-orange-500 flex items-center justify-center overflow-hidden">
+                                    <Image
+                                        src="/chatbot.png"
+                                        alt="Lilly"
+                                        width={40}
+                                        height={40}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
                                 <div>
-                                    <h2 className="text-lg font-semibold text-white">
-                                        Total Life AI
-                                    </h2>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-lg font-semibold text-white">
+                                            Lilly
+                                        </h2>
+                                        {/* Online status indicator */}
+                                        <div
+                                            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
+                                            <span className="text-xs text-green-400">Online</span>
+                                        </div>
+                                    </div>
                                     <p className="text-xs text-gray-400">
                                         Your wellness assistant
                                     </p>
                                 </div>
                             </div>
-                            <motion.button
+                            <button
                                 onClick={onClose}
-                                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
+                                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer"
                             >
                                 <X className="w-5 h-5"/>
-                            </motion.button>
-                        </motion.div>
+                            </button>
+                        </div>
 
                         {/* Messages area */}
                         <div className="relative flex-1 overflow-y-auto p-6 space-y-6">
                             {messages.length === 0 ? (
-                                // Empty state
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 }}
-                                    className="h-full flex flex-col items-center justify-center text-center px-4"
-                                >
-                                    <motion.div
-                                        className="w-20 h-20 rounded-2xl bg-gradient-to-br from-coral-500 to-orange-500 flex items-center justify-center mb-6"
-                                        animate={{
-                                            rotate: [0, 10, -10, 0],
-                                            scale: [1, 1.05, 1]
-                                        }}
-                                        transition={{
-                                            duration: 4,
-                                            repeat: Infinity,
-                                            ease: "easeInOut"
-                                        }}
-                                    >
-                                        <Sparkles className="w-10 h-10 text-white"/>
-                                    </motion.div>
+                                // Empty state - simplified
+                                <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                                    {/* Avatar */}
+                                    <div className="relative mb-6">
+                                        <div
+                                            className="absolute inset-0 rounded-2xl bg-gradient-to-br from-coral-500 to-orange-500 animate-pulse opacity-30"/>
+                                        <div
+                                            className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-coral-500 to-orange-500 flex items-center justify-center overflow-hidden">
+                                            <Image
+                                                src="/chatbot.png"
+                                                alt="Lilly"
+                                                width={80}
+                                                height={80}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    </div>
+                                    
                                     <h3 className="text-2xl font-bold text-white mb-2">
-                                        How can I help you today?
+                                        Hi, I&apos;m Lilly! How can I help?
                                     </h3>
                                     <p className="text-gray-400 mb-8 max-w-md">
                                         Ask me anything about nutrition, sleep, mindfulness,
@@ -478,22 +623,17 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
 
                                     {/* Suggested questions */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-                                        {suggestedQuestions.map((question, index) => (
-                                            <motion.button
+                                        {suggestedQuestions.map((question) => (
+                                            <button
                                                 key={question}
                                                 onClick={() => setInputValue(question)}
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.3 + index * 0.1 }}
-                                                className="text-left p-4 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-300 hover:bg-gray-800 hover:border-coral-500/50 hover:text-white transition-all duration-300 text-sm"
-                                                whileHover={{ scale: 1.02, x: 5 }}
-                                                whileTap={{ scale: 0.98 }}
+                                                className="text-left p-4 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-300 hover:bg-gray-800 hover:border-coral-500/50 hover:text-white transition-all duration-200 text-sm cursor-pointer"
                                             >
                                                 {question}
-                                            </motion.button>
+                                            </button>
                                         ))}
                                     </div>
-                                </motion.div>
+                                </div>
                             ) : (
                                 // Messages list
                                 <div className="space-y-6">
@@ -517,12 +657,10 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
                         </div>
 
                         {/* Input area */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.15 }}
-                            className="relative p-4 border-t border-gray-800"
-                        >
+                        <div className="relative p-4 border-t border-gray-800">
+                            <div
+                                className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-coral-500/30 to-transparent"/>
+                            
                             <form onSubmit={handleSubmit} className="relative">
                                 <div className="relative flex items-center">
                                     <input
@@ -531,28 +669,33 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
                                         placeholder="Ask about healthy aging..."
-                                        disabled={isLoading}
-                                        className="w-full px-5 py-4 pr-14 bg-gray-800/80 border border-gray-700/50 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-coral-500/50 focus:border-coral-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={isLoading || isStreaming}
+                                        className="relative w-full px-5 py-4 pr-14 bg-gray-800/80 border border-gray-700/50 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-coral-500/50 focus:border-coral-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     />
-                                    <motion.button
-                                        type="submit"
-                                        disabled={!inputValue.trim() || isLoading}
-                                        className="absolute right-2 p-2.5 rounded-xl bg-gradient-to-r from-coral-500 to-orange-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                    >
-                                        {isLoading ? (
-                                            <Loader2 className="w-5 h-5 animate-spin"/>
-                                        ) : (
+                                    {(isLoading || isStreaming) ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleStop}
+                                            className="absolute right-2 p-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 border border-gray-600 hover:border-gray-500 text-gray-300 hover:text-white cursor-pointer transition-all"
+                                            title="Stop generating"
+                                        >
+                                            <Square className="w-4 h-4 fill-current"/>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="submit"
+                                            disabled={!inputValue.trim()}
+                                            className="absolute right-2 p-2.5 rounded-xl bg-gradient-to-r from-coral-500 to-orange-500 text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                                        >
                                             <Send className="w-5 h-5"/>
-                                        )}
-                                    </motion.button>
+                                        </button>
+                                    )}
                                 </div>
                             </form>
                             <p className="text-xs text-gray-500 text-center mt-3">
-                                AI-powered responses based on Total Life Daily content
+                                Lilly provides AI-powered wellness advice based on Total Life Daily content
                             </p>
-                        </motion.div>
+                        </div>
                     </motion.div>
                 </>
             )}

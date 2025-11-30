@@ -40,7 +40,7 @@ export function FeaturedSection({ articles }: FeaturedSectionProps): JSX.Element
                     className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
                     staggerDelay={0.15}
                 >
-                    {articles.map((article) => (
+                    {articles.map((article, index) => (
                         <StaggerItem key={article.slug} animation="fadeUp">
                             <Link
                                 href={`/blog/${article.slug}`}
@@ -54,7 +54,9 @@ export function FeaturedSection({ articles }: FeaturedSectionProps): JSX.Element
                                                 src={article.featuredImage.url}
                                                 alt={article.featuredImage.alt}
                                                 fill
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                                priority={index === 0}
                                             />
                                         ) : (
                                             <div

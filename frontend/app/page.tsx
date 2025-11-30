@@ -1,12 +1,18 @@
 import { JSX } from "react";
-import { HeroSection, FeaturedSection, CategorySection } from "@/components/blog";
+import { CategorySection, FeaturedSection, HeroSection } from "@/components/blog";
 import { PodcastSection } from "@/components/podcast";
 import { NewsletterSection } from "@/components/forms";
 import { AISearchSection } from "@/components/search";
+import { getHomepageData, toCategoryArticles, toFeaturedArticle, toHeroArticle, } from "@/lib/api/articles";
 import type { ArticleCategory } from "@/types/article";
 
-// Mock data - replace with API calls later
-const heroArticle = {
+// Fallback mock data in case API is unavailable
+const fallbackHeroArticle: {
+    slug: string;
+    title: string;
+    excerpt?: string;
+    featuredImage?: { url: string; alt: string };
+} = {
     slug: "why-bigger-friend-groups-could-be-the-secret-to-living-longer-no-membership-required",
     title: "Why Bigger Friend Groups Could Be the Secret to Living Longer",
     excerpt: "New research reveals that expanding your social circle could add years to your life. Here's the science behind friendship and longevity.",
@@ -16,11 +22,19 @@ const heroArticle = {
     },
 };
 
-const featuredArticles = [
+type FeaturedArticleType = {
+    slug: string;
+    title: string;
+    excerpt?: string;
+    category: ArticleCategory;
+    featuredImage?: { url: string; alt: string };
+};
+
+const fallbackFeaturedArticles: FeaturedArticleType[] = [
     {
         slug: "how-8-weeks-of-mindfulness-gave-seniors-sharper-minds-better-mood-and-more-zest",
         title: "How 8 Weeks of Mindfulness Gave Seniors Sharper Minds, Better Mood, and More Zest",
-        category: "mindset",
+        category: "mindset" as ArticleCategory,
         featuredImage: {
             url: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80",
             alt: "Senior practicing mindfulness meditation",
@@ -29,16 +43,16 @@ const featuredArticles = [
     {
         slug: "eat-to-age-well-the-12-year-study-that-proves-its-not-too-late",
         title: "Eat to Age Well: The 12-Year Study That Proves It's Not Too Late",
-        category: "nourishment",
+        category: "nourishment" as ArticleCategory,
         featuredImage: {
             url: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80",
             alt: "Healthy colorful meal with vegetables",
         },
     },
     {
-        slug: "the-bedtime-secret-90-year-olds-know",
+        slug: "the-bedtime-secret-90-year-olds-know-that-could-keep-your-brain-young",
         title: "The Bedtime Secret 90-Year-Olds Know (That Could Keep Your Brain Young)",
-        category: "restoration",
+        category: "restoration" as ArticleCategory,
         featuredImage: {
             url: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=800&q=80",
             alt: "Peaceful bedroom for restful sleep",
@@ -46,12 +60,14 @@ const featuredArticles = [
     },
 ];
 
-const articlesByCategory: Record<ArticleCategory, Array<{
+type CategoryArticleType = {
     slug: string;
     title: string;
     category: ArticleCategory;
     featuredImage?: { url: string; alt: string };
-}>> = {
+};
+
+const fallbackArticlesByCategory: Record<ArticleCategory, CategoryArticleType[]> = {
     nourishment: [
         {
             slug: "she-just-ate-more-salmon-you-wont-believe-what-happened-to-her-brain-and-balance",
@@ -170,7 +186,36 @@ const featuredPodcast = {
 const PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLOR6jU7e9REiL-uB4sWx9wshj3KY2n4UU";
 const TOTAL_EPISODES = 20;
 
-export default function Home(): JSX.Element {
+export default async function Home(): Promise<JSX.Element> {
+    // Fetch data from API with fallback to mock data
+    let heroArticle = fallbackHeroArticle;
+    let featuredArticles = fallbackFeaturedArticles;
+    let articlesByCategory = fallbackArticlesByCategory;
+
+    try {
+        const homepageData = await getHomepageData();
+
+        if (homepageData.hero_article) {
+            heroArticle = toHeroArticle(homepageData.hero_article);
+        }
+
+        if (homepageData.featured_articles.length > 0) {
+            featuredArticles = homepageData.featured_articles.map(toFeaturedArticle);
+        }
+
+        // Transform API category data, keeping fallback for any empty categories
+        const apiCategories = toCategoryArticles(homepageData.articles_by_category);
+        articlesByCategory = {
+            nourishment: apiCategories.nourishment.length > 0 ? apiCategories.nourishment : fallbackArticlesByCategory.nourishment,
+            restoration: apiCategories.restoration.length > 0 ? apiCategories.restoration : fallbackArticlesByCategory.restoration,
+            mindset: apiCategories.mindset.length > 0 ? apiCategories.mindset : fallbackArticlesByCategory.mindset,
+            relationships: apiCategories.relationships.length > 0 ? apiCategories.relationships : fallbackArticlesByCategory.relationships,
+            vitality: apiCategories.vitality.length > 0 ? apiCategories.vitality : fallbackArticlesByCategory.vitality,
+        };
+    } catch (error) {
+        console.error("Failed to fetch homepage data, using fallback:", error);
+    }
+
     return (
         <>
             {/* Hero Section */}

@@ -4,7 +4,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     container_name: fastapi-backend
     restart: unless-stopped
     env_file:
@@ -23,7 +23,7 @@ services:
     container_name: nextjs-frontend
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://backend:${BACKEND_PORT:-8000}
     depends_on:
       - backend
     networks:
