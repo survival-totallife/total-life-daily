@@ -177,9 +177,17 @@ def enhance_query_node(state: AgentState) -> dict:
     Uses LLM to convert a natural language question into optimized PubMed search terms.
     This improves search results by using proper medical terminology and Boolean operators.
     """
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
     api_key = os.getenv("GOOGLE_API_KEY")
-    llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+    
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable is not set")
+    
+    llm = ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=api_key,
+        transport="rest"  # Use REST API instead of gRPC to avoid auth scope issues
+    )
     
     system_prompt = """You are a medical search query optimizer for PubMed. Convert natural language health questions into effective PubMed search queries.
 
@@ -288,9 +296,17 @@ def generate_research_node(state: AgentState) -> dict:
     """
     print(f"[DEBUG] Using RESEARCH generation path")
     
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
     api_key = os.getenv("GOOGLE_API_KEY")
-    llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+    
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable is not set")
+    
+    llm = ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=api_key,
+        transport="rest"  # Use REST API instead of gRPC to avoid auth scope issues
+    )
     
     system_prompt = """You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions by combining your broad wellness knowledge with insights from research articles.
 
@@ -354,9 +370,17 @@ def generate_general_node(state: AgentState) -> dict:
     """
     print(f"[DEBUG] Using GENERAL generation path (no research articles found)")
     
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
     api_key = os.getenv("GOOGLE_API_KEY")
-    llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+    
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable is not set")
+    
+    llm = ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=api_key,
+        transport="rest"  # Use REST API instead of gRPC to avoid auth scope issues
+    )
     
     system_prompt = """You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions using your general knowledge.
 
