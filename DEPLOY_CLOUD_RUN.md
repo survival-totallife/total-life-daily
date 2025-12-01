@@ -83,7 +83,7 @@ gcloud run deploy total-life-frontend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --port 80 \
+  --port 8080 \
   --memory 256Mi \
   --cpu 1 \
   --max-instances 10
@@ -199,7 +199,7 @@ gcloud run deploy total-life-frontend \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --port 80
+  --port 8080
 
 echo "Deployment complete!"
 echo "Backend: $BACKEND_URL"

@@ -20,7 +20,6 @@ ARG VITE_API_URL
 ARG VITE_YOUTUBE_API_KEY
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
-ARG VITE_GOOGLE_API_KEY
 
 # Build the application
 RUN npm run build
@@ -46,15 +45,22 @@ RUN addgroup -g 1001 -S appgroup && \
     touch /var/run/nginx.pid && \
     chown -R appuser:appgroup /var/run/nginx.pid
 
-# Cloud Run uses PORT environment variable (default 8080)
-ENV PORT=8080
+# Create startup script to handle PORT environment variable
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'PORT=${PORT:-8080}' >> /start.sh && \
+    echo 'sed -i "s/listen 80;/listen $PORT;/g" /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /start.sh && \
+    chmod +x /start.sh
 
-# Expose port (will be overridden by Cloud Run)
+# Expose port (will be overridden by Cloud Run's PORT env var)
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
+# Environment variable for port (Cloud Run will set this)
+ENV PORT=8080
 
-# Start nginx with envsubst to replace PORT variable
-CMD ["/bin/sh", "-c", "envsubst '$$PORT' < /etc/nginx/conf.d/default.conf > /tmp/default.conf && mv /tmp/default.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+# Health check (using PORT env var)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/ || exit 1
+
+# Start nginx with dynamic port
+CMD ["/start.sh"]
