@@ -3,13 +3,14 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 
 interface Article {
-  id: number;
+  article_id: number;
   slug: string;
   title: string;
-  markdown: string;
+  excerpt: string | null;
   category: string;
-  created_at: string;
-  updated_at: string;
+  featured_image: { url: string; alt: string } | null;
+  is_featured: boolean;
+  published_at: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -17,9 +18,19 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function TestArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
-  const [markdown, setMarkdown] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Form fields
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [content, setContent] = useState("");
+  const [category, setCategory] = useState<"nourishment" | "restoration" | "mindset" | "relationships" | "vitality">("nourishment");
+  const [featuredImageUrl, setFeaturedImageUrl] = useState("");
+  const [featuredImageAlt, setFeaturedImageAlt] = useState("");
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isHero, setIsHero] = useState(false);
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -36,8 +47,8 @@ export default function TestArticlesPage() {
   };
 
   const createArticle = async () => {
-    if (!markdown.trim()) {
-      setMessage("Please enter markdown content");
+    if (!title.trim() || !slug.trim() || !content.trim()) {
+      setMessage("Please fill in title, slug, and content");
       return;
     }
     setLoading(true);
@@ -45,15 +56,42 @@ export default function TestArticlesPage() {
       const res = await fetch(`${API_URL}/articles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown }),
+        body: JSON.stringify({
+          slug: slug,
+          title: title,
+          excerpt: excerpt || null,
+          content: content,
+          category: category,
+          featured_image_url: featuredImageUrl || null,
+          featured_image_alt: featuredImageAlt || null,
+          is_featured: isFeatured,
+          is_hero: isHero
+        }),
       });
       if (res.ok) {
         setMessage("Article created successfully");
-        setMarkdown("");
+        // Clear form
+        setTitle("");
+        setSlug("");
+        setExcerpt("");
+        setContent("");
+        setCategory("nourishment");
+        setFeaturedImageUrl("");
+        setFeaturedImageAlt("");
+        setIsFeatured(false);
+        setIsHero(false);
         fetchArticles();
       } else {
         const error = await res.json();
-        setMessage(`Error: ${error.detail || "Failed to create article"}`);
+        // Handle Pydantic validation errors
+        if (Array.isArray(error.detail)) {
+          const errorMessages = error.detail.map((err: any) =>
+            `${err.loc.join('.')}: ${err.msg}`
+          ).join(', ');
+          setMessage(`Validation Error: ${errorMessages}`);
+        } else {
+          setMessage(`Error: ${error.detail || "Failed to create article"}`);
+        }
       }
     } catch (error) {
       setMessage(`Error creating article: ${error}`);
@@ -67,25 +105,60 @@ export default function TestArticlesPage() {
       setMessage("Please select an article to update");
       return;
     }
-    if (!markdown.trim()) {
-      setMessage("Please enter markdown content");
+    if (!selectedArticle.article_id) {
+      setMessage("Error: Selected article has no ID. Please select the article again.");
+      setSelectedArticle(null);
+      return;
+    }
+    if (!title.trim() || !content.trim()) {
+      setMessage("Please fill in title and content");
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/articles/${selectedArticle.id}`, {
+      const url = `${API_URL}/articles/${selectedArticle.article_id}`;
+      console.log('Updating article:', selectedArticle.article_id, 'URL:', url);
+
+      const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown }),
+        body: JSON.stringify({
+          title: title,
+          slug: slug,
+          excerpt: excerpt || null,
+          content: content,
+          category: category,
+          featured_image_url: featuredImageUrl || null,
+          featured_image_alt: featuredImageAlt || null,
+          is_featured: isFeatured,
+          is_hero: isHero
+        }),
       });
       if (res.ok) {
         setMessage("Article updated successfully");
-        setMarkdown("");
+        // Clear form
+        setTitle("");
+        setSlug("");
+        setExcerpt("");
+        setContent("");
+        setCategory("nourishment");
+        setFeaturedImageUrl("");
+        setFeaturedImageAlt("");
+        setIsFeatured(false);
+        setIsHero(false);
         setSelectedArticle(null);
         fetchArticles();
       } else {
         const error = await res.json();
-        setMessage(`Error: ${error.detail || "Failed to update article"}`);
+        // Handle Pydantic validation errors
+        if (Array.isArray(error.detail)) {
+          const errorMessages = error.detail.map((err: any) =>
+            `${err.loc.join('.')}: ${err.msg}`
+          ).join(', ');
+          setMessage(`Validation Error: ${errorMessages}`);
+        } else {
+          setMessage(`Error: ${error.detail || "Failed to update article"}`);
+        }
       }
     } catch (error) {
       setMessage(`Error updating article: ${error}`);
@@ -103,9 +176,18 @@ export default function TestArticlesPage() {
       });
       if (res.ok) {
         setMessage("Article deleted successfully");
-        if (selectedArticle?.id === id) {
+        if (selectedArticle?.article_id === id) {
           setSelectedArticle(null);
-          setMarkdown("");
+          // Clear form
+          setTitle("");
+          setSlug("");
+          setExcerpt("");
+          setContent("");
+          setCategory("nourishment");
+          setFeaturedImageUrl("");
+          setFeaturedImageAlt("");
+          setIsFeatured(false);
+          setIsHero(false);
         }
         fetchArticles();
       } else {
@@ -119,10 +201,40 @@ export default function TestArticlesPage() {
     }
   };
 
-  const selectArticle = (article: Article) => {
-    setSelectedArticle(article);
-    setMarkdown(article.markdown);
-    setMessage(`Selected: ${article.title}`);
+  const selectArticle = async (article: Article) => {
+    setMessage(`Selected: ${article.title}. Loading full content...`);
+    // Fetch the full article content since preview doesn't include it
+    try {
+      const res = await fetch(`${API_URL}/articles/${article.article_id}`);
+      if (res.ok) {
+        const fullArticle = await res.json();
+        // Update the selected article with the full data including article_id
+        setSelectedArticle({
+          article_id: fullArticle.article_id,
+          slug: fullArticle.slug,
+          title: fullArticle.title,
+          excerpt: fullArticle.excerpt,
+          category: fullArticle.category,
+          featured_image: fullArticle.featured_image,
+          is_featured: fullArticle.is_featured,
+          published_at: fullArticle.published_at
+        });
+        setTitle(fullArticle.title || "");
+        setSlug(fullArticle.slug || "");
+        setExcerpt(fullArticle.excerpt || "");
+        setContent(fullArticle.content || "");
+        setCategory(fullArticle.category || "nourishment");
+        setFeaturedImageUrl(fullArticle.featured_image?.url || "");
+        setFeaturedImageAlt(fullArticle.featured_image?.alt || "");
+        setIsFeatured(fullArticle.is_featured || false);
+        setIsHero(fullArticle.is_hero || false);
+        setMessage(`Loaded: ${fullArticle.title}`);
+      } else {
+        setMessage(`Error loading article: ${res.status}`);
+      }
+    } catch (error) {
+      setMessage(`Error loading article content: ${error}`);
+    }
   };
 
   useEffect(() => {
@@ -161,24 +273,89 @@ export default function TestArticlesPage() {
 
         <div style={{ display: "flex", gap: "30px" }}>
           {/* Left Column - Form */}
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, maxHeight: "80vh", overflowY: "auto" }}>
             <h2>
               {selectedArticle ? `Editing: ${selectedArticle.title}` : "Create New Article"}
             </h2>
-            <textarea
-              value={markdown}
-              onChange={(e) => setMarkdown(e.target.value)}
-              placeholder="Enter markdown content..."
-              style={{
-                width: "100%",
-                height: "300px",
-                padding: "10px",
-                fontFamily: "monospace",
-                fontSize: "14px",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-              }}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Title *"
+                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              />
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="Slug (URL-friendly) *"
+                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              />
+              <textarea
+                value={excerpt}
+                onChange={(e) => setExcerpt(e.target.value)}
+                placeholder="Excerpt (short summary)"
+                rows={2}
+                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              />
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as any)}
+                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              >
+                <option value="nourishment">Nourishment</option>
+                <option value="restoration">Restoration</option>
+                <option value="mindset">Mindset</option>
+                <option value="relationships">Relationships</option>
+                <option value="vitality">Vitality</option>
+              </select>
+              <input
+                type="text"
+                value={featuredImageUrl}
+                onChange={(e) => setFeaturedImageUrl(e.target.value)}
+                placeholder="Featured Image URL"
+                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              />
+              <input
+                type="text"
+                value={featuredImageAlt}
+                onChange={(e) => setFeaturedImageAlt(e.target.value)}
+                placeholder="Featured Image Alt Text"
+                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              />
+              <div style={{ display: "flex", gap: "15px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                  />
+                  Featured Article
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <input
+                    type="checkbox"
+                    checked={isHero}
+                    onChange={(e) => setIsHero(e.target.checked)}
+                  />
+                  Hero Article
+                </label>
+              </div>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Content (markdown) *"
+                rows={12}
+                style={{
+                  padding: "10px",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
             <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
               {selectedArticle ? (
                 <>
@@ -199,7 +376,15 @@ export default function TestArticlesPage() {
                   <button
                     onClick={() => {
                       setSelectedArticle(null);
-                      setMarkdown("");
+                      setTitle("");
+                      setSlug("");
+                      setExcerpt("");
+                      setContent("");
+                      setCategory("nourishment");
+                      setFeaturedImageUrl("");
+                      setFeaturedImageAlt("");
+                      setIsFeatured(false);
+                      setIsHero(false);
                       setMessage("");
                     }}
                     style={{
@@ -260,13 +445,13 @@ export default function TestArticlesPage() {
               <div style={{ maxHeight: "500px", overflowY: "auto" }}>
                 {articles.map((article) => (
                   <div
-                    key={article.id}
+                    key={article.article_id}
                     style={{
                       padding: "15px",
                       marginBottom: "10px",
-                      backgroundColor: selectedArticle?.id === article.id ? "#e3f2fd" : "#f5f5f5",
+                      backgroundColor: selectedArticle?.article_id === article.article_id ? "#e3f2fd" : "#f5f5f5",
                       borderRadius: "4px",
-                      border: selectedArticle?.id === article.id ? "2px solid #2196F3" : "1px solid #ddd",
+                      border: selectedArticle?.article_id === article.article_id ? "2px solid #2196F3" : "1px solid #ddd",
                     }}
                   >
                     <h3 style={{ margin: "0 0 5px 0", fontSize: "16px" }}>{article.title}</h3>
@@ -274,7 +459,7 @@ export default function TestArticlesPage() {
                       Category: {article.category} | Slug: {article.slug}
                     </p>
                     <p style={{ margin: "0 0 10px 0", color: "#888", fontSize: "11px" }}>
-                      Created: {new Date(article.created_at).toLocaleString()}
+                      Published: {new Date(article.published_at).toLocaleString()}
                     </p>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button
@@ -292,7 +477,7 @@ export default function TestArticlesPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => deleteArticle(article.id)}
+                        onClick={() => deleteArticle(article.article_id)}
                         style={{
                           padding: "5px 10px",
                           backgroundColor: "#f44336",
