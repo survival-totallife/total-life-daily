@@ -30,27 +30,15 @@ FROM nginx:1.27-alpine AS runner
 # Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy custom nginx configuration as template
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Add non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup && \
-    chown -R appuser:appgroup /usr/share/nginx/html && \
-    chown -R appuser:appgroup /var/cache/nginx && \
-    chown -R appuser:appgroup /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R appuser:appgroup /var/run/nginx.pid
-
-# Create startup script to handle PORT environment variable
-RUN echo '#!/bin/sh' > /start.sh && \
-    echo 'PORT=${PORT:-8080}' >> /start.sh && \
-    echo 'sed -i "s/listen 80;/listen $PORT;/g" /etc/nginx/conf.d/default.conf' >> /start.sh && \
-    echo 'exec nginx -g "daemon off;"' >> /start.sh && \
-    chmod +x /start.sh
+# Copy startup script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Expose port (will be overridden by Cloud Run's PORT env var)
 EXPOSE 8080
@@ -58,9 +46,9 @@ EXPOSE 8080
 # Environment variable for port (Cloud Run will set this)
 ENV PORT=8080
 
-# Health check (using PORT env var)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/ || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# Start nginx with dynamic port
-CMD ["/start.sh"]
+# Use custom entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]
