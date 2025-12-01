@@ -64,6 +64,22 @@ class ChatResponse(BaseModel):
 # API ENDPOINTS
 # =============================================================================
 
+@app.get("/")
+async def root():
+    """
+    Health check endpoint for Cloud Run.
+    """
+    return {"status": "healthy", "service": "Total Life Daily API"}
+
+
+@app.get("/health")
+async def health():
+    """
+    Health check endpoint.
+    """
+    return {"status": "ok"}
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
@@ -89,9 +105,13 @@ async def chat(request: ChatRequest):
 
 
 # =============================================================================
-# RUN SERVER (for development)
+# RUN SERVER (for development and Cloud Run)
 # =============================================================================
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    
+    # Use PORT environment variable for Cloud Run, default to 8000 for local
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
