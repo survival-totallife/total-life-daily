@@ -5,6 +5,7 @@ import { getArticleBySlug, getArticles, type ArticlePreview } from "@/lib/api/ar
 import {
   ArticleHero,
   ArticleContent,
+  ArticleNarrator,
   RelatedArticles,
 } from "@/components/blog";
 import { NewsletterSection } from "@/components/forms";
@@ -87,6 +88,14 @@ export default function BlogPostPage() {
 
       <main>
         <ArticleHero article={article} />
+        
+        {/* Article Narrator - Sticky at top while reading */}
+        <ArticleNarrator 
+          title={article.title}
+          content={article.content}
+          excerpt={article.excerpt}
+        />
+        
         <ArticleContent 
           content={article.content}
           articleId={article.article_id}

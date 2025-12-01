@@ -3,6 +3,7 @@ export { FeaturedSection } from "./FeaturedSection";
 export { CategorySection } from "./CategorySection";
 export { ArticleHero } from "./ArticleHero";
 export { ArticleContent } from "./ArticleContent";
+export { ArticleNarrator } from "./ArticleNarrator";
 export { RelatedArticles } from "./RelatedArticles";
 export { ArticleEngagement } from "./ArticleEngagement";
 export { CommentsSection } from "./CommentsSection";
