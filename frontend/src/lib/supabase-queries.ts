@@ -174,12 +174,16 @@ export async function updateArticle(id: number, articleData: {
  * Delete an article by ID
  */
 export async function deleteArticle(id: number) {
+  console.log('Deleting article with id:', id);
   const { error } = await supabase
     .from('articles')
     .delete()
     .eq('id', id)
 
-  if (error) throw error
+  if (error) {
+    console.error('Delete error:', error);
+    throw error;
+  }
   return true
 }
 

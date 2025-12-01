@@ -133,6 +133,28 @@ CREATE POLICY "Allow users to delete their own comment likes"
     TO anon, authenticated
     USING (true);
 
--- Note: Articles INSERT/UPDATE/DELETE will be restricted by default
--- Only authenticated admin users should be able to modify articles
--- You can add admin policies later if needed
+-- RLS Policies - Allow article management (INSERT/UPDATE/DELETE)
+-- WARNING: These are permissive policies for development/testing
+-- In production, you should restrict these to authenticated admin users only
+CREATE POLICY "Allow public insert on articles"
+    ON articles FOR INSERT
+    TO anon, authenticated
+    WITH CHECK (true);
+
+CREATE POLICY "Allow public update on articles"
+    ON articles FOR UPDATE
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Allow public delete on articles"
+    ON articles FOR DELETE
+    TO anon, authenticated
+    USING (true);
+
+-- Note: In production, replace the above policies with admin-only policies like:
+-- CREATE POLICY "Allow admin insert on articles"
+--     ON articles FOR INSERT
+--     TO authenticated
+--     WITH CHECK (auth.jwt() ->> 'email' = 'admin@example.com');
+-- (and similar for UPDATE and DELETE)
