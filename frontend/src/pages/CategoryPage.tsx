@@ -102,6 +102,30 @@ const articlesByCategory: Record<ArticleCategory, Array<{
         alt: "Healthy colorful meal",
       },
     },
+    {
+      slug: "the-mediterranean-secret-why-this-diet-adds-years-to-your-life",
+      title: "The Mediterranean Secret: Why This Diet Adds Years to Your Life",
+      excerpt: "Explore the science behind one of the world's healthiest eating patterns and how to adopt it.",
+      category: "nourishment",
+      publishedAt: "2024-11-15",
+      readTimeMinutes: 7,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800&q=80",
+        alt: "Mediterranean diet foods",
+      },
+    },
+    {
+      slug: "gut-health-revolution-how-your-microbiome-affects-aging",
+      title: "Gut Health Revolution: How Your Microbiome Affects Aging",
+      excerpt: "Learn how the bacteria in your gut influence everything from brain health to immune function.",
+      category: "nourishment",
+      publishedAt: "2024-11-10",
+      readTimeMinutes: 9,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=800&q=80",
+        alt: "Fermented foods for gut health",
+      },
+    },
   ],
   restoration: [
     {
@@ -114,6 +138,42 @@ const articlesByCategory: Record<ArticleCategory, Array<{
       featuredImage: {
         url: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=800&q=80",
         alt: "Peaceful bedroom",
+      },
+    },
+    {
+      slug: "why-100-year-olds-are-out-sleeping-you-and-what-they-know-that-you-dont",
+      title: "Why 100-Year-Olds Are Out-Sleeping You—and What They Know That You Don't",
+      excerpt: "The surprising sleep habits of the world's longest-lived people and how to adopt them.",
+      category: "restoration",
+      publishedAt: "2024-11-19",
+      readTimeMinutes: 6,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1515894203077-9cd36032142f?w=800&q=80",
+        alt: "Serene sleeping environment",
+      },
+    },
+    {
+      slug: "the-power-of-naps-science-backed-ways-to-recharge",
+      title: "The Power of Naps: Science-Backed Ways to Recharge Your Afternoon",
+      excerpt: "Discover the optimal nap duration and timing for maximum energy and cognitive benefits.",
+      category: "restoration",
+      publishedAt: "2024-11-14",
+      readTimeMinutes: 4,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1520206183501-b80df61043c2?w=800&q=80",
+        alt: "Person napping comfortably",
+      },
+    },
+    {
+      slug: "stress-relief-techniques-that-actually-work",
+      title: "Stress Relief Techniques That Actually Work (According to Research)",
+      excerpt: "Evidence-based methods to reduce cortisol and promote deep relaxation.",
+      category: "restoration",
+      publishedAt: "2024-11-09",
+      readTimeMinutes: 7,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80",
+        alt: "Relaxation and meditation",
       },
     },
   ],
@@ -130,6 +190,42 @@ const articlesByCategory: Record<ArticleCategory, Array<{
         alt: "Person walking in nature",
       },
     },
+    {
+      slug: "how-8-weeks-of-mindfulness-gave-seniors-sharper-minds-better-mood-and-more-zest",
+      title: "How 8 Weeks of Mindfulness Gave Seniors Sharper Minds, Better Mood, and More Zest",
+      excerpt: "A clinical study reveals the transformative power of meditation for cognitive and emotional health.",
+      category: "mindset",
+      publishedAt: "2024-11-18",
+      readTimeMinutes: 7,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80",
+        alt: "Mindfulness meditation",
+      },
+    },
+    {
+      slug: "gratitude-practice-the-5-minute-habit-changing-lives",
+      title: "Gratitude Practice: The 5-Minute Habit That's Changing Lives",
+      excerpt: "How a simple daily practice can rewire your brain for happiness and resilience.",
+      category: "mindset",
+      publishedAt: "2024-11-13",
+      readTimeMinutes: 4,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&q=80",
+        alt: "Gratitude journaling",
+      },
+    },
+    {
+      slug: "brain-games-that-actually-keep-your-mind-sharp",
+      title: "Brain Games That Actually Keep Your Mind Sharp (And Which Ones Don't)",
+      excerpt: "Neuroscientists reveal which cognitive exercises provide real benefits for brain health.",
+      category: "mindset",
+      publishedAt: "2024-11-08",
+      readTimeMinutes: 8,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=800&q=80",
+        alt: "Puzzle and brain games",
+      },
+    },
   ],
   relationships: [
     {
@@ -144,6 +240,42 @@ const articlesByCategory: Record<ArticleCategory, Array<{
         alt: "Friends enjoying time together",
       },
     },
+    {
+      slug: "why-bigger-friend-groups-could-be-the-secret-to-living-longer-no-membership-required",
+      title: "Why Bigger Friend Groups Could Be the Secret to Living Longer (No Membership Required)",
+      excerpt: "New research reveals that expanding your social circle could add years to your life.",
+      category: "relationships",
+      publishedAt: "2024-11-17",
+      readTimeMinutes: 5,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80",
+        alt: "Group of friends",
+      },
+    },
+    {
+      slug: "how-to-deepen-your-relationships-at-any-age",
+      title: "How to Deepen Your Relationships at Any Age",
+      excerpt: "Practical strategies for building more meaningful connections with the people who matter most.",
+      category: "relationships",
+      publishedAt: "2024-11-12",
+      readTimeMinutes: 7,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&q=80",
+        alt: "Family connections",
+      },
+    },
+    {
+      slug: "loneliness-epidemic-what-science-says-about-staying-connected",
+      title: "The Loneliness Epidemic: What Science Says About Staying Connected",
+      excerpt: "Understanding the health risks of isolation and practical ways to combat loneliness.",
+      category: "relationships",
+      publishedAt: "2024-11-07",
+      readTimeMinutes: 9,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=800&q=80",
+        alt: "Community gathering",
+      },
+    },
   ],
   vitality: [
     {
@@ -156,6 +288,42 @@ const articlesByCategory: Record<ArticleCategory, Array<{
       featuredImage: {
         url: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80",
         alt: "Active seniors exercising",
+      },
+    },
+    {
+      slug: "move-this-way-after-65-and-help-your-future-self-thrive",
+      title: "Move This Way After 65—And Help Your Future Self Thrive",
+      excerpt: "The best exercise routines for maintaining strength, balance, and independence as you age.",
+      category: "vitality",
+      publishedAt: "2024-11-16",
+      readTimeMinutes: 7,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&q=80",
+        alt: "Senior doing yoga",
+      },
+    },
+    {
+      slug: "strength-training-for-seniors-its-never-too-late-to-start",
+      title: "Strength Training for Seniors: It's Never Too Late to Start",
+      excerpt: "How resistance exercise can reverse muscle loss and boost your metabolism at any age.",
+      category: "vitality",
+      publishedAt: "2024-11-11",
+      readTimeMinutes: 8,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80",
+        alt: "Senior strength training",
+      },
+    },
+    {
+      slug: "walking-10000-steps-myth-or-magic",
+      title: "Walking 10,000 Steps: Myth or Magic? What the Research Really Says",
+      excerpt: "Scientists reveal the optimal daily step count for health benefits and longevity.",
+      category: "vitality",
+      publishedAt: "2024-11-06",
+      readTimeMinutes: 5,
+      featuredImage: {
+        url: "https://images.unsplash.com/photo-1483721310020-03333e577078?w=800&q=80",
+        alt: "Person walking outdoors",
       },
     },
   ],

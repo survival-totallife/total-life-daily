@@ -11,6 +11,12 @@ interface Source {
     url: string;
 }
 
+// State for highlighted source
+interface HighlightedSource {
+    messageId: string;
+    sourceIndex: number;
+}
+
 interface Message {
     id: string;
     role: "user" | "assistant";
@@ -56,13 +62,33 @@ function useTypingEffect(text: string, isStreaming: boolean, speed: number = 15)
 }
 
 // Message component with enhanced waterfall animation
-function MessageBubble({ message, isLatest }: { message: Message; isLatest: boolean }) {
+function MessageBubble({ 
+    message, 
+    isLatest, 
+    highlightedSource,
+    onCitationClick 
+}: { 
+    message: Message; 
+    isLatest: boolean;
+    highlightedSource: HighlightedSource | null;
+    onCitationClick: (messageId: string, sourceIndex: number) => void;
+}) {
     const displayedContent = useTypingEffect(
         message.content,
         Boolean(message.isStreaming && isLatest),
         5
     );
     const isUser = message.role === "user";
+
+    // Handle citation click within the message content
+    const handleContentClick = useCallback((e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('citation-link')) {
+            e.preventDefault();
+            const sourceIndex = parseInt(target.getAttribute('data-source-index') || '0', 10);
+            onCitationClick(message.id, sourceIndex);
+        }
+    }, [message.id, onCitationClick]);
 
     return (
         <motion.div
@@ -117,10 +143,12 @@ function MessageBubble({ message, isLatest }: { message: Message; isLatest: bool
                     <p className="text-sm leading-relaxed">{message.content}</p>
                 ) : (
                     <div
-                        className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-headings:text-coral-300 prose-strong:text-coral-200 prose-li:marker:text-coral-400">
+                        className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-headings:text-coral-300 prose-strong:text-coral-200 prose-li:marker:text-coral-400"
+                        onClick={handleContentClick}
+                    >
                         <div
                             dangerouslySetInnerHTML={{
-                                __html: formatMarkdown(displayedContent)
+                                __html: formatMarkdown(displayedContent, message.sources || [])
                             }}
                         />
                         {message.isStreaming && isLatest && (
@@ -142,35 +170,48 @@ function MessageBubble({ message, isLatest }: { message: Message; isLatest: bool
                                 <div className="flex items-center gap-2 mb-3">
                                     <BookOpen className="w-4 h-4 text-coral-400"/>
                                     <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
-                                        Research Sources ({message.sources.length})
+                                        References ({message.sources.length})
                                     </span>
                                 </div>
                                 <div className="space-y-2">
-                                    {message.sources.map((source, idx) => (
-                                        <motion.a
-                                            key={source.id}
-                                            href={source.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.4 + idx * 0.1 }}
-                                            className="block p-3 rounded-lg bg-gray-900/50 border border-gray-700/30 hover:border-coral-500/50 hover:bg-gray-900/80 transition-all duration-200 group"
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-medium text-gray-200 line-clamp-2 group-hover:text-coral-200 transition-colors">
-                                                        {source.title}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500 mt-1 truncate">
-                                                        {source.authors} • {source.journal} ({source.year})
-                                                    </p>
+                                    {message.sources.map((source, idx) => {
+                                        const isHighlighted = highlightedSource?.messageId === message.id && 
+                                                              highlightedSource?.sourceIndex === idx;
+                                        return (
+                                            <motion.a
+                                                key={source.id}
+                                                id={`source-${message.id}-${idx}`}
+                                                href={source.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ 
+                                                    opacity: 1, 
+                                                    x: 0,
+                                                    backgroundColor: isHighlighted ? 'rgba(251, 113, 98, 0.15)' : 'rgba(17, 24, 39, 0.5)',
+                                                    borderColor: isHighlighted ? 'rgba(251, 113, 98, 0.5)' : 'rgba(55, 65, 81, 0.3)'
+                                                }}
+                                                transition={{ delay: 0.4 + idx * 0.1 }}
+                                                className="block p-3 rounded-lg border hover:border-coral-500/50 hover:bg-gray-900/80 transition-all duration-200 group"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <span className="flex-shrink-0 inline-flex items-center justify-center min-w-[24px] h-[24px] px-1.5 text-xs font-medium bg-coral-500/20 text-coral-300 rounded-full">
+                                                        {idx + 1}
+                                                    </span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-medium text-gray-200 line-clamp-2 group-hover:text-coral-200 transition-colors">
+                                                            {source.title}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-1 truncate">
+                                                            {source.authors} • {source.journal} ({source.year})
+                                                        </p>
+                                                    </div>
+                                                    <ExternalLink
+                                                        className="w-3.5 h-3.5 text-gray-500 group-hover:text-coral-400 flex-shrink-0 transition-colors"/>
                                                 </div>
-                                                <ExternalLink
-                                                    className="w-3.5 h-3.5 text-gray-500 group-hover:text-coral-400 flex-shrink-0 transition-colors"/>
-                                            </div>
-                                        </motion.a>
-                                    ))}
+                                            </motion.a>
+                                        );
+                                    })}
                                 </div>
                             </motion.div>
                         )}
@@ -182,12 +223,25 @@ function MessageBubble({ message, isLatest }: { message: Message; isLatest: bool
 }
 
 // Simple markdown formatter
-function formatMarkdown(text: string): string {
+function formatMarkdown(text: string, sources: Source[]): string {
+    // Create a map from source ID to index
+    const sourceIdToIndex = new Map<string, number>();
+    sources.forEach((source, idx) => {
+        sourceIdToIndex.set(source.id, idx);
+    });
+
     return text
-        // Source citations - ChatGPT-style superscript numbers
+        // Source citations - convert [Source: ID] to superscript numbers that scroll to reference
         .replace(
             /\[Source:\s*(\d+)\]/g,
-            '<a href="https://pubmed.ncbi.nlm.nih.gov/$1" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-gray-600 hover:bg-gray-500 text-gray-200 rounded-full no-underline cursor-pointer align-super transition-colors" title="View source on PubMed">$1</a>'
+            (_match, id) => {
+                const sourceIndex = sourceIdToIndex.get(id);
+                if (sourceIndex !== undefined) {
+                    return `<span class="citation-link inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-gray-600 hover:bg-coral-500 text-gray-200 rounded-full no-underline cursor-pointer align-super transition-colors" data-source-index="${sourceIndex}" title="View reference ${sourceIndex + 1}">${sourceIndex + 1}</span>`;
+                }
+                // Fallback if source not found - just show the ID as a number
+                return `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-gray-600 text-gray-200 rounded-full align-super">${id}</span>`;
+            }
         )
         // Headers
         .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold text-coral-300 mt-4 mb-2">$1</h3>')
@@ -294,11 +348,29 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
+    const [highlightedSource, setHighlightedSource] = useState<HighlightedSource | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
     const streamingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const currentStreamingIdRef = useRef<string | null>(null);
+
+    // Handle citation click - scroll to and highlight source
+    const handleCitationClick = useCallback((messageId: string, sourceIndex: number) => {
+        // Set highlighted source
+        setHighlightedSource({ messageId, sourceIndex });
+        
+        // Scroll to the source element
+        const sourceElement = document.getElementById(`source-${messageId}-${sourceIndex}`);
+        if (sourceElement) {
+            sourceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+            setHighlightedSource(null);
+        }, 3000);
+    }, []);
 
     // Stop the current streaming/generation
     const handleStop = useCallback(() => {
@@ -640,6 +712,8 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
                                                 key={message.id}
                                                 message={message}
                                                 isLatest={index === messages.length - 1}
+                                                highlightedSource={highlightedSource}
+                                                onCitationClick={handleCitationClick}
                                             />
                                         ))}
                                     </AnimatePresence>
