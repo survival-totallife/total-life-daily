@@ -18,6 +18,8 @@ COPY . .
 # Build arguments for environment variables (available at build time)
 ARG VITE_API_URL
 ARG VITE_YOUTUBE_API_KEY
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
 
 # Build the application
 RUN npm run build

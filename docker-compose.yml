@@ -9,8 +9,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    volumes:
-      - ./backend/data:/app/data
     networks:
       - app-network
 
@@ -21,6 +19,8 @@ services:
       args:
         - VITE_API_URL=http://localhost:${BACKEND_PORT:-8000}
         - VITE_YOUTUBE_API_KEY=${VITE_YOUTUBE_API_KEY:-}
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     ports:
       - "3000:80"
     container_name: vite-frontend

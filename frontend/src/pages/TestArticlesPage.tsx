@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import {
+  getArticles,
+  getArticleById,
+  createArticle,
+  updateArticle,
+  deleteArticle,
+} from "@/lib/supabase-queries";
 
-interface Article {
+interface ArticleDisplay {
   article_id: number;
   slug: string;
   title: string;
@@ -13,11 +20,9 @@ interface Article {
   published_at: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
 export default function TestArticlesPage() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [articles, setArticles] = useState<ArticleDisplay[]>([]);
+  const [selectedArticle, setSelectedArticle] = useState<ArticleDisplay | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -35,72 +40,66 @@ export default function TestArticlesPage() {
   const fetchArticles = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/articles`);
-      const data = await res.json();
-      setArticles(data);
+      const data = await getArticles();
+      const transformed: ArticleDisplay[] = data.map((article) => ({
+        article_id: article.id,
+        slug: article.slug,
+        title: article.title,
+        excerpt: article.excerpt,
+        category: article.category,
+        featured_image: article.featured_image_url
+          ? { url: article.featured_image_url, alt: article.featured_image_alt || "" }
+          : null,
+        is_featured: article.is_featured,
+        published_at: article.published_at,
+      }));
+      setArticles(transformed);
       setMessage("Articles fetched successfully");
-    } catch (error) {
-      setMessage(`Error fetching articles: ${error}`);
+    } catch (error: any) {
+      setMessage(`Error fetching articles: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const createArticle = async () => {
+  const createNewArticle = async () => {
     if (!title.trim() || !slug.trim() || !content.trim()) {
       setMessage("Please fill in title, slug, and content");
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/articles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: slug,
-          title: title,
-          excerpt: excerpt || null,
-          content: content,
-          category: category,
-          featured_image_url: featuredImageUrl || null,
-          featured_image_alt: featuredImageAlt || null,
-          is_featured: isFeatured,
-          is_hero: isHero
-        }),
+      await createArticle({
+        slug: slug,
+        title: title,
+        excerpt: excerpt || null,
+        content: content,
+        category: category,
+        featured_image_url: featuredImageUrl || null,
+        featured_image_alt: featuredImageAlt || null,
+        is_featured: isFeatured,
+        is_hero: isHero,
       });
-      if (res.ok) {
-        setMessage("Article created successfully");
-        // Clear form
-        setTitle("");
-        setSlug("");
-        setExcerpt("");
-        setContent("");
-        setCategory("nourishment");
-        setFeaturedImageUrl("");
-        setFeaturedImageAlt("");
-        setIsFeatured(false);
-        setIsHero(false);
-        fetchArticles();
-      } else {
-        const error = await res.json();
-        // Handle Pydantic validation errors
-        if (Array.isArray(error.detail)) {
-          const errorMessages = error.detail.map((err: any) =>
-            `${err.loc.join('.')}: ${err.msg}`
-          ).join(', ');
-          setMessage(`Validation Error: ${errorMessages}`);
-        } else {
-          setMessage(`Error: ${error.detail || "Failed to create article"}`);
-        }
-      }
-    } catch (error) {
-      setMessage(`Error creating article: ${error}`);
+      setMessage("Article created successfully");
+      // Clear form
+      setTitle("");
+      setSlug("");
+      setExcerpt("");
+      setContent("");
+      setCategory("nourishment");
+      setFeaturedImageUrl("");
+      setFeaturedImageAlt("");
+      setIsFeatured(false);
+      setIsHero(false);
+      fetchArticles();
+    } catch (error: any) {
+      setMessage(`Error creating article: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateArticle = async () => {
+  const updateExistingArticle = async () => {
     if (!selectedArticle) {
       setMessage("Please select an article to update");
       return;
@@ -116,26 +115,45 @@ export default function TestArticlesPage() {
     }
     setLoading(true);
     try {
-      const url = `${API_URL}/articles/${selectedArticle.article_id}`;
-      console.log('Updating article:', selectedArticle.article_id, 'URL:', url);
-
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title,
-          slug: slug,
-          excerpt: excerpt || null,
-          content: content,
-          category: category,
-          featured_image_url: featuredImageUrl || null,
-          featured_image_alt: featuredImageAlt || null,
-          is_featured: isFeatured,
-          is_hero: isHero
-        }),
+      await updateArticle(selectedArticle.article_id, {
+        title: title,
+        slug: slug,
+        excerpt: excerpt || null,
+        content: content,
+        category: category,
+        featured_image_url: featuredImageUrl || null,
+        featured_image_alt: featuredImageAlt || null,
+        is_featured: isFeatured,
+        is_hero: isHero,
       });
-      if (res.ok) {
-        setMessage("Article updated successfully");
+      setMessage("Article updated successfully");
+      // Clear form
+      setTitle("");
+      setSlug("");
+      setExcerpt("");
+      setContent("");
+      setCategory("nourishment");
+      setFeaturedImageUrl("");
+      setFeaturedImageAlt("");
+      setIsFeatured(false);
+      setIsHero(false);
+      setSelectedArticle(null);
+      fetchArticles();
+    } catch (error: any) {
+      setMessage(`Error updating article: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteExistingArticle = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this article?")) return;
+    setLoading(true);
+    try {
+      await deleteArticle(id);
+      setMessage("Article deleted successfully");
+      if (selectedArticle?.article_id === id) {
+        setSelectedArticle(null);
         // Clear form
         setTitle("");
         setSlug("");
@@ -146,94 +164,44 @@ export default function TestArticlesPage() {
         setFeaturedImageAlt("");
         setIsFeatured(false);
         setIsHero(false);
-        setSelectedArticle(null);
-        fetchArticles();
-      } else {
-        const error = await res.json();
-        // Handle Pydantic validation errors
-        if (Array.isArray(error.detail)) {
-          const errorMessages = error.detail.map((err: any) =>
-            `${err.loc.join('.')}: ${err.msg}`
-          ).join(', ');
-          setMessage(`Validation Error: ${errorMessages}`);
-        } else {
-          setMessage(`Error: ${error.detail || "Failed to update article"}`);
-        }
       }
-    } catch (error) {
-      setMessage(`Error updating article: ${error}`);
+      fetchArticles();
+    } catch (error: any) {
+      setMessage(`Error deleting article: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteArticle = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this article?")) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/articles/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setMessage("Article deleted successfully");
-        if (selectedArticle?.article_id === id) {
-          setSelectedArticle(null);
-          // Clear form
-          setTitle("");
-          setSlug("");
-          setExcerpt("");
-          setContent("");
-          setCategory("nourishment");
-          setFeaturedImageUrl("");
-          setFeaturedImageAlt("");
-          setIsFeatured(false);
-          setIsHero(false);
-        }
-        fetchArticles();
-      } else {
-        const error = await res.json();
-        setMessage(`Error: ${error.detail || "Failed to delete article"}`);
-      }
-    } catch (error) {
-      setMessage(`Error deleting article: ${error}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectArticle = async (article: Article) => {
+  const selectArticle = async (article: ArticleDisplay) => {
     setMessage(`Selected: ${article.title}. Loading full content...`);
-    // Fetch the full article content since preview doesn't include it
     try {
-      const res = await fetch(`${API_URL}/articles/${article.article_id}`);
-      if (res.ok) {
-        const fullArticle = await res.json();
-        // Update the selected article with the full data including article_id
-        setSelectedArticle({
-          article_id: fullArticle.article_id,
-          slug: fullArticle.slug,
-          title: fullArticle.title,
-          excerpt: fullArticle.excerpt,
-          category: fullArticle.category,
-          featured_image: fullArticle.featured_image,
-          is_featured: fullArticle.is_featured,
-          published_at: fullArticle.published_at
-        });
-        setTitle(fullArticle.title || "");
-        setSlug(fullArticle.slug || "");
-        setExcerpt(fullArticle.excerpt || "");
-        setContent(fullArticle.content || "");
-        setCategory(fullArticle.category || "nourishment");
-        setFeaturedImageUrl(fullArticle.featured_image?.url || "");
-        setFeaturedImageAlt(fullArticle.featured_image?.alt || "");
-        setIsFeatured(fullArticle.is_featured || false);
-        setIsHero(fullArticle.is_hero || false);
-        setMessage(`Loaded: ${fullArticle.title}`);
-      } else {
-        setMessage(`Error loading article: ${res.status}`);
-      }
-    } catch (error) {
-      setMessage(`Error loading article content: ${error}`);
+      const fullArticle = await getArticleById(article.article_id);
+      // Update the selected article with the full data including article_id
+      setSelectedArticle({
+        article_id: fullArticle.id,
+        slug: fullArticle.slug,
+        title: fullArticle.title,
+        excerpt: fullArticle.excerpt,
+        category: fullArticle.category,
+        featured_image: fullArticle.featured_image_url
+          ? { url: fullArticle.featured_image_url, alt: fullArticle.featured_image_alt || "" }
+          : null,
+        is_featured: fullArticle.is_featured,
+        published_at: fullArticle.published_at,
+      });
+      setTitle(fullArticle.title || "");
+      setSlug(fullArticle.slug || "");
+      setExcerpt(fullArticle.excerpt || "");
+      setContent(fullArticle.content || "");
+      setCategory(fullArticle.category as any);
+      setFeaturedImageUrl(fullArticle.featured_image_url || "");
+      setFeaturedImageAlt(fullArticle.featured_image_alt || "");
+      setIsFeatured(fullArticle.is_featured || false);
+      setIsHero(fullArticle.is_hero || false);
+      setMessage(`Loaded: ${fullArticle.title}`);
+    } catch (error: any) {
+      setMessage(`Error loading article content: ${error.message}`);
     }
   };
 
@@ -360,8 +328,8 @@ export default function TestArticlesPage() {
               {selectedArticle ? (
                 <>
                   <button
-                    onClick={updateArticle}
-                    disabled={loading}
+                  onClick={updateExistingArticle}
+                  disabled={loading}
                     style={{
                       padding: "10px 20px",
                       backgroundColor: "#4CAF50",
@@ -401,7 +369,7 @@ export default function TestArticlesPage() {
                 </>
               ) : (
                 <button
-                  onClick={createArticle}
+                  onClick={createNewArticle}
                   disabled={loading}
                   style={{
                     padding: "10px 20px",
@@ -477,7 +445,7 @@ export default function TestArticlesPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => deleteArticle(article.article_id)}
+                        onClick={() => deleteExistingArticle(article.article_id)}
                         style={{
                           padding: "5px 10px",
                           backgroundColor: "#f44336",

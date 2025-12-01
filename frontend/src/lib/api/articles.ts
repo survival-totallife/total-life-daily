@@ -1,13 +1,21 @@
 /**
- * API client functions for fetching articles from the backend
+ * API client functions for fetching articles from Supabase
  */
 
+import {
+  getArticles as supabaseGetArticles,
+  getArticleBySlug as supabaseGetArticleBySlug,
+  getArticleById as supabaseGetArticleById,
+  getHeroArticle as supabaseGetHeroArticle,
+  getFeaturedArticles as supabaseGetFeaturedArticles,
+  getArticlesByCategory as supabaseGetArticlesByCategory,
+  getHomepageData as supabaseGetHomepageData,
+} from "@/lib/supabase-queries";
+import type { Article } from "@/lib/supabase";
 import type { ArticleCategory } from "@/types/article";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
 // =============================================================================
-// Types matching backend schemas
+// Types matching Supabase schemas
 // =============================================================================
 
 export interface FeaturedImage {
@@ -56,6 +64,44 @@ export interface HomepageData {
 }
 
 // =============================================================================
+// Helper function to transform Supabase Article to ArticlePreview
+// =============================================================================
+
+function transformToPreview(article: Article): ArticlePreview {
+  return {
+    article_id: article.id,
+    slug: article.slug,
+    title: article.title,
+    excerpt: article.excerpt,
+    category: article.category as ArticleCategory,
+    featured_image: article.featured_image_url
+      ? { url: article.featured_image_url, alt: article.featured_image_alt || "" }
+      : null,
+    is_featured: article.is_featured,
+    published_at: article.published_at,
+  };
+}
+
+function transformToResponse(article: Article): ArticleResponse {
+  return {
+    article_id: article.id,
+    slug: article.slug,
+    title: article.title,
+    excerpt: article.excerpt,
+    content: article.content,
+    category: article.category as ArticleCategory,
+    featured_image: article.featured_image_url
+      ? { url: article.featured_image_url, alt: article.featured_image_alt || "" }
+      : null,
+    is_featured: article.is_featured,
+    is_hero: article.is_hero,
+    published_at: article.published_at,
+    created_at: article.created_at,
+    updated_at: article.updated_at,
+  };
+}
+
+// =============================================================================
 // API Client Functions
 // =============================================================================
 
@@ -63,39 +109,38 @@ export interface HomepageData {
  * Fetch all data needed for the homepage in a single request
  */
 export async function getHomepageData(): Promise<HomepageData> {
-    const response = await fetch(`${API_BASE_URL}/homepage`);
+    const data = await supabaseGetHomepageData();
 
-    if (!response.ok) {
-        throw new Error(`Failed to fetch homepage data: ${response.statusText}`);
-    }
-
-    return response.json();
+    return {
+        hero_article: data.hero ? transformToPreview(data.hero) : null,
+        featured_articles: data.featured.map(transformToPreview),
+        articles_by_category: {
+            nourishment: (data.articles_by_category.nourishment || []).map(transformToPreview),
+            restoration: (data.articles_by_category.restoration || []).map(transformToPreview),
+            mindset: (data.articles_by_category.mindset || []).map(transformToPreview),
+            relationships: (data.articles_by_category.relationships || []).map(transformToPreview),
+            vitality: (data.articles_by_category.vitality || []).map(transformToPreview),
+        },
+    };
 }
 
 /**
  * Fetch hero article
  */
 export async function getHeroArticle(): Promise<ArticlePreview> {
-    const response = await fetch(`${API_BASE_URL}/articles/hero`);
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch hero article: ${response.statusText}`);
+    const article = await supabaseGetHeroArticle();
+    if (!article) {
+        throw new Error("No hero article found");
     }
-
-    return response.json();
+    return transformToPreview(article);
 }
 
 /**
  * Fetch featured articles
  */
 export async function getFeaturedArticles(limit: number = 3): Promise<ArticlePreview[]> {
-    const response = await fetch(`${API_BASE_URL}/articles/featured?limit=${limit}`);
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch featured articles: ${response.statusText}`);
-    }
-
-    return response.json();
+    const articles = await supabaseGetFeaturedArticles(limit);
+    return articles.map(transformToPreview);
 }
 
 /**
@@ -106,50 +151,31 @@ export async function getArticles(options?: {
     limit?: number;
     category?: ArticleCategory;
 }): Promise<ArticlePreview[]> {
-    const params = new URLSearchParams();
-    if (options?.skip) params.set("skip", options.skip.toString());
-    if (options?.limit) params.set("limit", options.limit.toString());
-    if (options?.category) params.set("category", options.category);
+    let articles: Article[];
 
-    const response = await fetch(`${API_BASE_URL}/articles?${params.toString()}`);
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch articles: ${response.statusText}`);
+    if (options?.category) {
+        articles = await supabaseGetArticlesByCategory(options.category, options.limit || 100);
+    } else {
+        articles = await supabaseGetArticles(options?.skip || 0, options?.limit || 100);
     }
 
-    return response.json();
+    return articles.map(transformToPreview);
 }
 
 /**
  * Fetch a single article by slug
  */
 export async function getArticleBySlug(slug: string): Promise<ArticleResponse> {
-    const response = await fetch(`${API_BASE_URL}/articles/slug/${slug}`);
-
-    if (!response.ok) {
-        if (response.status === 404) {
-            throw new Error("Article not found");
-        }
-        throw new Error(`Failed to fetch article: ${response.statusText}`);
-    }
-
-    return response.json();
+    const article = await supabaseGetArticleBySlug(slug);
+    return transformToResponse(article);
 }
 
 /**
  * Fetch a single article by ID
  */
 export async function getArticleById(id: number): Promise<ArticleResponse> {
-    const response = await fetch(`${API_BASE_URL}/articles/${id}`);
-
-    if (!response.ok) {
-        if (response.status === 404) {
-            throw new Error("Article not found");
-        }
-        throw new Error(`Failed to fetch article: ${response.statusText}`);
-    }
-
-    return response.json();
+    const article = await supabaseGetArticleById(id);
+    return transformToResponse(article);
 }
 
 // =============================================================================
