@@ -18,12 +18,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:${BACKEND_PORT:-8000}
+        - VITE_YOUTUBE_API_KEY=${VITE_YOUTUBE_API_KEY:-}
     ports:
-      - "3000:3000"
-    container_name: nextjs-frontend
+      - "3000:80"
+    container_name: vite-frontend
     restart: unless-stopped
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:${BACKEND_PORT:-8000}
     depends_on:
       - backend
     networks:

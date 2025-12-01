@@ -14,6 +14,7 @@ Welcome! This guide will get you running in under 2 minutes.
 ```bash
 git clone https://github.com/survival-totallife/total-life-daily.git
 cd total-life-daily
+git checkout vite-frontend   # Switch to the new Vite frontend branch
 ```
 
 ### 2. Set Up Environment Variables
@@ -34,14 +35,14 @@ GOOGLE_API_KEY=your_actual_api_key_here
 ### 3. Start Everything with Docker
 
 ```bash
-docker-compose up --build
+docker-compose up --build -d
 ```
 
 First time will take 2-3 minutes to build. Subsequent starts are faster.
 
 ### 4. Access the Application
 
-Once you see "Application startup complete" in the logs:
+Once containers are running (check with `docker-compose ps`):
 
 - **Frontend Homepage**: http://localhost:3000
 - **Article CRUD Test**: http://localhost:3000/test-articles
@@ -67,6 +68,9 @@ Once you see "Application startup complete" in the logs:
 ## Useful Commands
 
 ```bash
+# Start in background
+docker-compose up -d
+
 # View logs
 docker-compose logs -f
 
@@ -77,7 +81,7 @@ docker-compose down
 docker-compose restart
 
 # Rebuild after code changes
-docker-compose up --build
+docker-compose up --build -d
 
 # Stop and remove database
 docker-compose down -v
@@ -95,37 +99,57 @@ docker-compose down -v
 - Restart containers: `docker-compose restart`
 - Check backend logs: `docker-compose logs backend`
 
+### 404 on page refresh
+- This is handled by nginx SPA routing
+- If issue persists, rebuild: `docker-compose up --build -d frontend`
+
 ### Port already in use
 - Change ports in `docker-compose.yml`
 - Or stop the conflicting service
 
-### Frontend shows build errors
-- This is normal during initial build
-- Wait for "compiled successfully" message
-- Refresh your browser
+### npm install fails (local dev)
+- Use `npm install --legacy-peer-deps` for React 19 compatibility
 
-## Next Steps
+## Local Development (Without Docker)
 
-Once you've verified both features work:
+### Frontend
+```bash
+cd frontend
+npm install --legacy-peer-deps
+npm run dev
+```
 
-1. Articles are stored in `backend/articles.db`
-2. Database persists between restarts
-3. Ready to build real UI components
+### Backend
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+## Tech Stack
+
+| Service | Technology | Docker Image |
+|---------|------------|--------------|
+| Frontend | Vite + React 19 + nginx | ~25 MB |
+| Backend | FastAPI (Python) | ~90 MB |
 
 ## Development Workflow
 
 ```bash
 # Make code changes
 # Rebuild and restart
-docker-compose up --build
+docker-compose up --build -d
 
-# Or for faster iteration (backend only)
-docker-compose up --build backend
-docker-compose restart frontend
+# Or for faster iteration (specific service)
+docker-compose up --build -d frontend
+docker-compose up --build -d backend
 ```
 
 ## Need Help?
 
 - API Documentation: http://localhost:8000/docs
-- Check `frontend/TESTING.md` for detailed testing guide
-- Check `backend/QUICKSTART.md` for backend details
+- Check `frontend/README.md` for frontend architecture
+- Check `backend/README.md` for backend details
+- Check `API_DOCUMENTATION.md` for full API reference

@@ -1,10 +1,10 @@
 # Total Life Daily - Frontend
 
-Next.js frontend for the Total Life Daily health and wellness blog platform.
+Vite + React frontend for the Total Life Daily health and wellness blog platform.
 
 ## Project Overview
 
-A modern, responsive web application that mirrors the functionality
+A modern, responsive single-page application that mirrors the functionality
 of [daily.totallife.com](https://daily.totallife.com/), featuring:
 
 - Health and wellness blog articles
@@ -15,100 +15,243 @@ of [daily.totallife.com](https://daily.totallife.com/), featuring:
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Animations**: Framer Motion
-- **Compiler**: React Compiler enabled
-- **Backend**: FastAPI (separate `/backend` directory)
+| Technology | Purpose |
+|------------|---------|
+| **Vite 6** | Fast build tool with HMR |
+| **React 19** | UI library |
+| **React Router 7** | Client-side routing |
+| **TypeScript** | Type safety |
+| **Tailwind CSS 4** | Utility-first styling |
+| **shadcn/ui** | Pre-built accessible components |
+| **Framer Motion** | Smooth animations |
+| **TanStack Query 5** | Server state management |
+| **react-helmet-async** | SEO meta tags |
+| **nginx** | Production static serving |
 
 ## Project Structure
 
 ```
 frontend/
-├── app/                          # Next.js App Router
-│   ├── layout.tsx               # Root layout with Header/Footer
-│   ├── page.tsx                 # Homepage
-│   ├── globals.css              # Global styles (Tailwind, resets, CSS variables only)
-│   ├── blog/
-│   │   └── [slug]/
-│   │       └── page.tsx         # Individual article page
-│   ├── category/
-│   │   └── [category]/
-│   │       └── page.tsx         # Category listing page
-│   ├── search/
-│   │   └── page.tsx             # AI search interface
-│   └── api/                     # Next.js API routes (optional)
-│
-├── components/                   # React components (modular structure)
-│   ├── ui/                      # shadcn/ui components
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   └── ...                  # Add components with: npx shadcn@latest add
-│   ├── common/                  # Custom reusable UI components
-│   │   ├── Loading/
-│   │   │   ├── Loading.tsx
-│   │   │   └── index.ts
-│   │   └── Badge/
-│   │       ├── Badge.tsx
-│   │       └── index.ts
-│   ├── layout/                  # Layout components
-│   │   ├── Header.tsx
-│   │   ├── Footer.tsx
-│   │   ├── Navigation.tsx
-│   │   └── Sidebar.tsx
-│   ├── blog/                    # Blog-specific components
-│   │   ├── ArticleCard.tsx
-│   │   ├── ArticleGrid.tsx
-│   │   ├── ArticleHero.tsx
-│   │   ├── CategoryBadge.tsx
-│   │   └── ArticleContent.tsx
-│   ├── search/                  # AI search components
-│   │   ├── SearchBar.tsx
-│   │   ├── SearchResults.tsx
-│   │   ├── AIResponse.tsx       # Streaming response with waterfall effect
-│   │   └── SearchSuggestions.tsx
-│   ├── podcast/                 # Podcast components
-│   │   ├── PodcastCard.tsx
-│   │   ├── PodcastPlayer.tsx
-│   │   └── EpisodeList.tsx
-│   └── forms/                   # Form components
-│       ├── NewsletterForm.tsx
-│       ├── ContactForm.tsx
-│       └── FormControls.tsx
-│
-├── lib/                         # Utilities and helpers
-│   ├── api/                     # API client functions
-│   │   ├── client.ts            # Base HTTP client
-│   │   ├── articles.ts          # Article endpoints
-│   │   ├── search.ts            # AI search endpoints
-│   │   └── categories.ts        # Category endpoints
-│   ├── utils/                   # Utility functions
-│   │   ├── cn.ts                # Class name utility (clsx + tailwind-merge)
-│   │   ├── formatters.ts        # Date/text formatting
-│   │   ├── validators.ts        # Validation helpers
-│   │   ├── constants.ts         # App constants
-│   │   └── index.ts             # Central export
-│   └── hooks/                   # Custom React hooks
-│       ├── useArticles.ts
-│       ├── useSearch.ts
-│       ├── useDebounce.ts
-│       └── useIntersectionObserver.ts
-│
-├── types/                       # TypeScript type definitions
-│   ├── article.ts               # Article types
-│   ├── search.ts                # Search types
-│   ├── podcast.ts               # Podcast types
-│   ├── common.ts                # Common types
-│   └── index.ts                 # Central export
+├── src/
+│   ├── main.tsx                 # Application entry point
+│   ├── App.tsx                  # Root component with routes
+│   ├── index.css                # Global styles + Tailwind
+│   │
+│   ├── pages/                   # Route page components
+│   │   ├── HomePage.tsx
+│   │   ├── BlogPostPage.tsx
+│   │   ├── CategoryPage.tsx
+│   │   ├── TestArticlesPage.tsx
+│   │   ├── TestChatPage.tsx
+│   │   └── NotFoundPage.tsx
+│   │
+│   ├── components/              # React components (modular)
+│   │   ├── ui/                  # shadcn/ui components
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── input.tsx
+│   │   │   ├── badge.tsx
+│   │   │   └── tabs.tsx
+│   │   ├── common/              # Shared components
+│   │   │   ├── PageTransition.tsx
+│   │   │   └── ScrollReveal.tsx
+│   │   ├── layout/              # Layout components
+│   │   │   ├── Header.tsx
+│   │   │   └── Footer.tsx
+│   │   ├── blog/                # Blog-specific components
+│   │   │   ├── ArticleContent.tsx
+│   │   │   ├── ArticleEngagement.tsx
+│   │   │   ├── ArticleHero.tsx
+│   │   │   ├── CategorySection.tsx
+│   │   │   ├── CommentsSection.tsx
+│   │   │   ├── FeaturedSection.tsx
+│   │   │   ├── HeroSection.tsx
+│   │   │   └── RelatedArticles.tsx
+│   │   ├── category/            # Category page components
+│   │   │   ├── CategoryArticlesGrid.tsx
+│   │   │   ├── CategoryHero.tsx
+│   │   │   └── CategoryPageWrapper.tsx
+│   │   ├── search/              # AI search components
+│   │   │   ├── AISearchModal.tsx
+│   │   │   └── AISearchSection.tsx
+│   │   ├── podcast/             # Podcast components
+│   │   │   └── PodcastSection.tsx
+│   │   └── forms/               # Form components
+│   │       └── NewsletterSection.tsx
+│   │
+│   ├── lib/                     # Utilities and helpers
+│   │   ├── api/                 # API client functions
+│   │   │   ├── articles.ts
+│   │   │   ├── engagement.ts
+│   │   │   └── youtube.ts
+│   │   ├── utils/               # Utility functions
+│   │   │   └── cn.ts            # Class name utility
+│   │   └── hooks/               # Custom React hooks
+│   │       └── useAnonymousUser.ts
+│   │
+│   └── types/                   # TypeScript type definitions
+│       ├── article.ts
+│       ├── search.ts
+│       ├── podcast.ts
+│       └── common.ts
 │
 ├── public/                      # Static assets
-│   ├── images/
-│   ├── fonts/
-│   └── icons/
-│
-└── README.md                    # This file
+├── index.html                   # HTML template
+├── vite.config.ts               # Vite configuration
+├── tailwind.config.ts           # Tailwind configuration
+├── tsconfig.json                # TypeScript configuration
+├── Dockerfile                   # Multi-stage build → nginx
+├── nginx.conf                   # Production server config
+└── .env.example                 # Environment template
 ```
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+ installed
+- npm package manager
+
+### Getting Started
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies (use --legacy-peer-deps for React 19)
+npm install --legacy-peer-deps
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+The app will be available at `http://localhost:5173`
+
+### Docker Development
+
+From the project root:
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Rebuild frontend after changes
+docker-compose up -d --build frontend
+```
+
+The app will be available at `http://localhost:3000`
+
+### Environment Variables
+
+Create a `.env` file (for local development):
+
+```env
+# Backend API URL
+VITE_API_URL=http://localhost:8000
+```
+
+For Docker, the environment is configured in `docker-compose.yml`.
+
+## Routing
+
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/` | `HomePage` | Hero, featured articles, categories |
+| `/blog/:slug` | `BlogPostPage` | Individual article with SEO |
+| `/category/:category` | `CategoryPage` | Category listing |
+| `/test-articles` | `TestArticlesPage` | Article CRUD testing |
+| `/test-chat` | `TestChatPage` | AI chatbot testing |
+| `*` | `NotFoundPage` | 404 error page |
+
+## Data Fetching
+
+Uses TanStack React Query for:
+
+- **Automatic caching**: Reduces redundant API calls
+- **Background refetching**: Data stays fresh
+- **Loading/error states**: Built-in state management
+- **Stale-while-revalidate**: Fast perceived performance
+
+Example:
+```tsx
+const { data, isLoading, error } = useQuery({
+  queryKey: ['article', slug],
+  queryFn: () => getArticleBySlug(slug)
+});
+```
+
+## SEO
+
+Uses `react-helmet-async` for dynamic meta tags:
+
+```tsx
+<Helmet>
+  <title>{article.title} | Total Life Daily</title>
+  <meta name="description" content={article.summary} />
+  <meta property="og:title" content={article.title} />
+</Helmet>
+```
+
+## Backend Integration
+
+The frontend communicates with a FastAPI backend at `http://localhost:8000`.
+
+### API Endpoints Used:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/homepage` | GET | Homepage data (featured + categories) |
+| `/articles` | GET | List all articles |
+| `/articles/{slug}` | GET | Get article by slug |
+| `/articles` | POST | Create new article |
+| `/articles/{id}` | PUT | Update article |
+| `/articles/{id}` | DELETE | Delete article |
+| `/articles/category/{category}` | GET | Articles by category |
+| `/chat` | POST | AI wellness chatbot |
+
+## Styling
+
+### Style Stack
+
+- **Tailwind CSS 4**: Utility-first styling
+- **shadcn/ui**: Pre-built accessible components with Radix UI
+- **Framer Motion**: Smooth animations and transitions
+
+### Adding shadcn Components
+
+```bash
+npx shadcn@latest add dialog
+npx shadcn@latest add dropdown-menu
+```
+
+### Animation Guidelines
+
+- Page transitions: Framer Motion `AnimatePresence`
+- Scroll animations: `ScrollReveal` component
+- Keep animations < 300ms for most interactions
+- AI search: Streaming text waterfall effect
+
+## Docker Production
+
+The Dockerfile uses a multi-stage build:
+
+1. **Build stage** (`node:20-alpine`): Install deps, build assets
+2. **Production stage** (`nginx:1.27-alpine`): Serve static files
+
+Final image size: ~25 MB
+
+### nginx Configuration
+
+- Gzip compression (level 6)
+- Aggressive caching for hashed assets (1 year)
+- SPA routing (`try_files $uri /index.html`)
+- Security headers (X-Frame-Options, X-Content-Type-Options)
 
 ## Key Features
 
@@ -123,8 +266,7 @@ frontend/
 
 - Real-time search with streaming responses
 - ChatGPT-style waterfall text effect
-- Source citations and related articles
-- Search suggestions and autocomplete
+- PubMed research source citations
 
 ### 3. Categories (5 Pillars)
 
@@ -138,121 +280,19 @@ frontend/
 
 - "Mind My Age" podcast episodes
 - Multi-platform links (YouTube, Spotify, Apple Podcasts)
-- Audio/video player integration
 
 ### 5. Newsletter Subscription
 
 - Email capture form
 - Name and phone optional fields
 
-## Development
-
-### Prerequisites
-
-- Node.js 18+ installed
-- npm or yarn package manager
-
-### Getting Started
-
-```bash
-# Navigate to frontend directory
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
-The app will be available at `http://localhost:3000`
-
-### Environment Variables
-
-Create a `.env.local` file:
-
-```env
-# Backend API URL
-NEXT_PUBLIC_API_URL=http://localhost:8000
-
-# Optional: Analytics, etc.
-NEXT_PUBLIC_GA_ID=
-```
-
-## Backend Integration
-
-The frontend communicates with a FastAPI backend located in `/backend`.
-
-### Expected API Endpoints:
-
-- `GET /api/articles` - List articles with pagination
-- `GET /api/articles/:slug` - Get single article
-- `GET /api/categories` - List categories
-- `GET /api/categories/:category/articles` - Articles by category
-- `POST /api/search` - AI-powered search (streaming)
-- `GET /api/podcast/episodes` - List podcast episodes
-- `POST /api/newsletter/subscribe` - Newsletter signup
-
-## Styling Guidelines
-
-### Style Stack
-
-- **Tailwind CSS**: Utility-first styling
-- **shadcn/ui**: Pre-built accessible components with Radix UI primitives
-- **Framer Motion**: Smooth animations and transitions
-- **CSS Modules**: Optional for complex component-specific styles
-
-### Adding shadcn Components
-
-```bash
-# Add individual components as needed
-npx shadcn@latest add button
-npx shadcn@latest add card
-npx shadcn@latest add input
-```
-
-### Animation Guidelines
-
-- Use Framer Motion for:
-    - Page transitions
-    - Component entrance/exit animations
-    - Scroll-triggered animations
-    - Gesture interactions
-- Keep animations subtle and performant (< 300ms for most)
-- Waterfall text effect for AI search responses
-
-### Design Principles
-
-- Follow mobile-first responsive design
-- Match the design aesthetic of daily.totallife.com
-- Use Geist Sans and Geist Mono fonts (already configured)
-- Maintain consistent spacing with Tailwind's spacing scale
-- Use shadcn's theme system for consistent colors and dark mode
-
 ## Code Standards
 
 - TypeScript strict mode enabled
 - ESLint configuration included
 - Use functional components with hooks
-- Prefer server components where possible (App Router)
-- Client components only when needed (interactivity, state)
-
-## Next Steps
-
-1. Implement core layout components (Header, Footer)
-2. Create article listing and detail pages
-3. Build AI search interface with streaming
-4. Add category filtering
-5. Integrate with FastAPI backend
-6. Implement podcast section
-7. Add newsletter form
-8. Polish UI/UX to match reference site
+- All components are client-side rendered (CSR)
+- Path aliases: `@/` maps to `src/`
 
 ## License
 
