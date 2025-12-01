@@ -76,7 +76,7 @@ function MessageBubble({
     const displayedContent = useTypingEffect(
         message.content,
         Boolean(message.isStreaming && isLatest),
-        5
+        10
     );
     const isUser = message.role === "user";
 
@@ -159,62 +159,87 @@ function MessageBubble({
                             />
                         )}
 
-                        {/* Sources section */}
-                        {message.sources && message.sources.length > 0 && !message.isStreaming && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="mt-4 pt-4 border-t border-gray-700/50"
-                            >
-                                <div className="flex items-center gap-2 mb-3">
-                                    <BookOpen className="w-4 h-4 text-coral-400"/>
-                                    <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
-                                        References ({message.sources.length})
-                                    </span>
-                                </div>
-                                <div className="space-y-2">
-                                    {message.sources.map((source, idx) => {
-                                        const isHighlighted = highlightedSource?.messageId === message.id && 
-                                                              highlightedSource?.sourceIndex === idx;
-                                        return (
-                                            <motion.a
-                                                key={source.id}
-                                                id={`source-${message.id}-${idx}`}
-                                                href={source.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ 
-                                                    opacity: 1, 
-                                                    x: 0,
-                                                    backgroundColor: isHighlighted ? 'rgba(251, 113, 98, 0.15)' : 'rgba(17, 24, 39, 0.5)',
-                                                    borderColor: isHighlighted ? 'rgba(251, 113, 98, 0.5)' : 'rgba(55, 65, 81, 0.3)'
-                                                }}
-                                                transition={{ delay: 0.4 + idx * 0.1 }}
-                                                className="block p-3 rounded-lg border hover:border-coral-500/50 hover:bg-gray-900/80 transition-all duration-200 group"
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <span className="flex-shrink-0 inline-flex items-center justify-center min-w-[24px] h-[24px] px-1.5 text-xs font-medium bg-coral-500/20 text-coral-300 rounded-full">
-                                                        {idx + 1}
-                                                    </span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-medium text-gray-200 line-clamp-2 group-hover:text-coral-200 transition-colors">
-                                                            {source.title}
-                                                        </p>
-                                                        <p className="text-xs text-gray-500 mt-1 truncate">
-                                                            {source.authors} • {source.journal} ({source.year})
-                                                        </p>
+                        {/* Sources section - show sources as they are cited */}
+                        {message.sources && message.sources.length > 0 && (() => {
+                            // Find which sources have been cited in the displayed content so far
+                            const citedSourceIndices = new Set<number>();
+                            const sourceIdToIndex = new Map<string, number>();
+                            message.sources.forEach((source, idx) => {
+                                sourceIdToIndex.set(source.id, idx);
+                            });
+                            
+                            // Check which sources are cited in the currently displayed text
+                            const citationMatches = displayedContent.matchAll(/\[Source:\s*(\d+)\]/g);
+                            for (const match of citationMatches) {
+                                const sourceIndex = sourceIdToIndex.get(match[1]);
+                                if (sourceIndex !== undefined) {
+                                    citedSourceIndices.add(sourceIndex);
+                                }
+                            }
+                            
+                            // Get sources in order of first citation
+                            const visibleSources = message.sources
+                                .map((source, idx) => ({ source, idx }))
+                                .filter(({ idx }) => citedSourceIndices.has(idx));
+                            
+                            if (visibleSources.length === 0) return null;
+                            
+                            return (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="mt-4 pt-4 border-t border-gray-700/50"
+                                >
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <BookOpen className="w-4 h-4 text-coral-400"/>
+                                        <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
+                                            References ({visibleSources.length}{message.isStreaming ? '+' : ''})
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {visibleSources.map(({ source, idx }) => {
+                                            const isHighlighted = highlightedSource?.messageId === message.id && 
+                                                                  highlightedSource?.sourceIndex === idx;
+                                            return (
+                                                <motion.a
+                                                    key={source.id}
+                                                    id={`source-${message.id}-${idx}`}
+                                                    href={source.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ 
+                                                        opacity: 1, 
+                                                        x: 0,
+                                                        backgroundColor: isHighlighted ? 'rgba(251, 113, 98, 0.15)' : 'rgba(17, 24, 39, 0.5)',
+                                                        borderColor: isHighlighted ? 'rgba(251, 113, 98, 0.5)' : 'rgba(55, 65, 81, 0.3)'
+                                                    }}
+                                                    transition={{ delay: 0.1 }}
+                                                    className="block p-3 rounded-lg border hover:border-coral-500/50 hover:bg-gray-900/80 transition-all duration-200 group"
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="flex-shrink-0 inline-flex items-center justify-center min-w-[24px] h-[24px] px-1.5 text-xs font-medium bg-coral-500/20 text-coral-300 rounded-full">
+                                                            {idx + 1}
+                                                        </span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-medium text-gray-200 line-clamp-2 group-hover:text-coral-200 transition-colors">
+                                                                {source.title}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500 mt-1 truncate">
+                                                                {source.authors} • {source.journal} ({source.year})
+                                                            </p>
+                                                        </div>
+                                                        <ExternalLink
+                                                            className="w-3.5 h-3.5 text-gray-500 group-hover:text-coral-400 flex-shrink-0 transition-colors"/>
                                                     </div>
-                                                    <ExternalLink
-                                                        className="w-3.5 h-3.5 text-gray-500 group-hover:text-coral-400 flex-shrink-0 transition-colors"/>
-                                                </div>
-                                            </motion.a>
-                                        );
-                                    })}
-                                </div>
-                            </motion.div>
-                        )}
+                                                </motion.a>
+                                            );
+                                        })}
+                                    </div>
+                                </motion.div>
+                            );
+                        })()}
                     </div>
                 )}
             </motion.div>
@@ -237,10 +262,10 @@ function formatMarkdown(text: string, sources: Source[]): string {
             (_match, id) => {
                 const sourceIndex = sourceIdToIndex.get(id);
                 if (sourceIndex !== undefined) {
-                    return `<span class="citation-link inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-gray-600 hover:bg-coral-500 text-gray-200 rounded-full no-underline cursor-pointer align-super transition-colors" data-source-index="${sourceIndex}" title="View reference ${sourceIndex + 1}">${sourceIndex + 1}</span>`;
+                    return `<span class="citation-link inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 hover:text-blue-300 rounded-full no-underline cursor-pointer align-super transition-colors border border-blue-500/30" data-source-index="${sourceIndex}" title="View reference ${sourceIndex + 1}">${sourceIndex + 1}</span>`;
                 }
                 // Fallback if source not found - just show the ID as a number
-                return `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-gray-600 text-gray-200 rounded-full align-super">${id}</span>`;
+                return `<span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 ml-0.5 text-[10px] font-medium bg-blue-500/20 text-blue-400 rounded-full align-super border border-blue-500/30">${id}</span>`;
             }
         )
         // Headers
@@ -492,7 +517,7 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
             currentStreamingIdRef.current = assistantMessageId;
 
             // Mark as done streaming after the animation completes
-            const streamDuration = data.answer.length * 5 + 500;
+            const streamDuration = data.answer.length * 10 + 500;
             streamingTimeoutRef.current = setTimeout(() => {
                 setMessages((prev) =>
                     prev.map((msg) =>

@@ -239,7 +239,7 @@ async def retrieve_node(state: AgentState) -> dict:
     
     try:
         # First attempt: Use the enhanced search query
-        pmids = await search_pubmed(search_query, max_results=5)
+        pmids = await search_pubmed(search_query, max_results=4)
         
         # Second attempt: If no results, try a simplified version (just key words from original question)
         if not pmids:
@@ -252,7 +252,7 @@ async def retrieve_node(state: AgentState) -> dict:
             ])
             if simplified_query:
                 print(f"[DEBUG] Simplified query: {simplified_query}")
-                pmids = await search_pubmed(simplified_query, max_results=5)
+                pmids = await search_pubmed(simplified_query, max_results=4)
         
         if not pmids:
             print(f"[DEBUG] No PubMed results found")
@@ -292,21 +292,26 @@ def generate_research_node(state: AgentState) -> dict:
     api_key = os.getenv("GOOGLE_API_KEY")
     llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
     
-    system_prompt = """You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions based on the provided research articles.
+    system_prompt = """You are a friendly and knowledgeable wellness guide. Your role is to help users with health and wellness questions by combining your broad wellness knowledge with insights from research articles.
 
-These are from peer-reviewed medical literature indexed in PubMed.
+You have been provided with some peer-reviewed research articles from PubMed. Use these to support and enhance your answer, but DO NOT limit yourself to only what's in these articles.
 
-IMPORTANT RULES:
-1. Base your answer on the provided research articles and cite them appropriately.
-2. CITATION FORMAT IS CRITICAL: Always cite sources using EXACTLY this format: [Source: PMID] where PMID is a single article ID.
-   - CORRECT: "Vitamin D is important [Source: 22716179]. It helps with calcium absorption [Source: 36902073]."
-   - WRONG: "Vitamin D is important [Source: 22716179, 36902073]." (DO NOT combine multiple PMIDs in one bracket!)
-   - WRONG: "[Source: 22716179, 36902073]" (NEVER do this!)
-   - If citing multiple sources for the same fact, use separate brackets: [Source: 22716179] [Source: 36902073]
-3. Be warm, encouraging, and supportive in your tone.
-4. Keep answers concise but informative.
-5. Synthesize information across articles rather than just summarizing each one.
-6. Remind users that this is general health information and they should consult healthcare providers for personal medical advice."""
+HOW TO STRUCTURE YOUR RESPONSE:
+1. Draw from your knowledge to provide a well-rounded answer covering the most important and widely-accepted advice on the topic.
+2. Use the provided research articles to add scientific backing. Cite them when you reference specific findings from them.
+3. Keep answers concise but informative
+
+CITATION RULES (only for information from the provided articles):
+- Use EXACTLY this format: [Source: PMID] where PMID is a single article ID.
+- CORRECT: "Studies show exercise improves sleep quality [Source: 22716179]."
+- WRONG: "[Source: 22716179, 36902073]" (NEVER combine PMIDs - use separate brackets)
+- Do NOT cite sources for general wellness knowledge that doesn't come from the articles.
+
+TONE AND STYLE:
+- Be warm and supportive.
+- Provide practical, actionable advice.
+- Keep the response focused but not overwhelming.
+- End with a short reminder that this is general health information and to consult a healthcare provider for medical advice."""
 
     context = state["context"]
     question = state["question"]
@@ -317,9 +322,9 @@ IMPORTANT RULES:
         for article in context
     ])
     
-    user_message = f"""Based on the following research articles, please answer the user's question.
+    user_message = f"""Please answer the user's wellness question comprehensively. Use your general knowledge as the foundation, and incorporate insights from the research articles below where they add value.
 
-RESEARCH ARTICLES:
+RESEARCH ARTICLES (use to support your answer, but don't limit yourself to only these):
 {context_text}
 
 USER QUESTION: {question}"""
