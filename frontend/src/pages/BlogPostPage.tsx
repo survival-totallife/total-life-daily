@@ -90,10 +90,9 @@ export default function BlogPostPage() {
         <ArticleHero article={article} />
         
         {/* Article Narrator - Sticky at top while reading */}
-        <ArticleNarrator 
+        <ArticleNarrator
           title={article.title}
           content={article.content}
-          excerpt={article.excerpt}
         />
         
         <ArticleContent 

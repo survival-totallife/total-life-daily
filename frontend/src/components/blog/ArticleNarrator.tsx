@@ -22,14 +22,14 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
   // Get API key from environment
   const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
 
-  // Clean markdown to plain text for narration
+  // Clean markdown and enhance with SSML for natural speech
   const cleanMarkdown = (text: string): string => {
     return text
       // Remove markdown headers
       .replace(/#{1,6}\s+/g, '')
-      // Remove bold/italic
-      .replace(/(\*\*|__)(.*?)\1/g, '$2')
-      .replace(/(\*|_)(.*?)\1/g, '$2')
+      // Preserve bold/italic as emphasis markers (will convert to SSML later)
+      .replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>')
+      .replace(/(\*|_)(.*?)\1/g, '<em>$2</em>')
       // Remove links but keep text
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       // Remove images
@@ -46,6 +46,31 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       // Clean up extra whitespace
       .replace(/\n\n+/g, '\n\n')
       .trim();
+  };
+
+  // Convert text to SSML for natural prosody and pauses
+  const enhanceWithSSML = (text: string): string => {
+    return `<speak>
+      <prosody rate="medium" pitch="+1st">
+        ${text
+          // Paragraph breaks (800ms pause)
+          .replace(/\n\n/g, '<break time="800ms"/>\n\n')
+          // Period pauses (500ms)
+          .replace(/\./g, '.<break time="500ms"/>')
+          // Question/exclamation pauses (600ms)
+          .replace(/\?/g, '?<break time="600ms"/>')
+          .replace(/!/g, '!<break time="600ms"/>')
+          // Comma pauses (300ms)
+          .replace(/,/g, ',<break time="300ms"/>')
+          // Colon/semicolon pauses (400ms)
+          .replace(/:/g, ':<break time="400ms"/>')
+          .replace(/;/g, ';<break time="400ms"/>')
+          // Convert emphasis markers to SSML
+          .replace(/<strong>(.*?)<\/strong>/g, '<emphasis level="strong">$1</emphasis>')
+          .replace(/<em>(.*?)<\/em>/g, '<emphasis level="moderate">$1</emphasis>')
+        }
+      </prosody>
+    </speak>`;
   };
 
   // Stop and reset audio
@@ -65,18 +90,21 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
     isGeneratingRef.current = false;
   };
 
-  // Split text into chunks for faster processing
-  const splitIntoChunks = (text: string, chunkSize: number = 2000): string[] => {
+  // Split text into optimal chunks (500-800 chars per chunk for faster streaming)
+  const splitIntoChunks = (text: string, chunkSize: number = 800): string[] => {
     const chunks: string[] = [];
-    const sentences = text.split(/(?<=[.!?])\s+/);
+    // Split by paragraphs first (semantic boundaries)
+    const paragraphs = text.split(/\n\n+/);
+
     let currentChunk = '';
 
-    for (const sentence of sentences) {
-      if ((currentChunk + sentence).length > chunkSize && currentChunk.length > 0) {
+    for (const paragraph of paragraphs) {
+      // If adding this paragraph exceeds chunk size and we have content, push current chunk
+      if ((currentChunk + paragraph).length > chunkSize && currentChunk.length > 0) {
         chunks.push(currentChunk.trim());
-        currentChunk = sentence;
+        currentChunk = paragraph;
       } else {
-        currentChunk += (currentChunk ? ' ' : '') + sentence;
+        currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
       }
     }
 
@@ -84,11 +112,14 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       chunks.push(currentChunk.trim());
     }
 
-    return chunks;
+    return chunks.length > 0 ? chunks : [text];
   };
 
-  // Generate audio for a single chunk
+  // Generate audio for a single chunk with SSML support
   const generateChunkAudio = async (text: string): Promise<string> => {
+    // Convert text to SSML for natural speech
+    const ssmlText = enhanceWithSSML(text);
+
     const response = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
@@ -97,18 +128,18 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input: { text },
+          input: { ssml: ssmlText }, // Use SSML instead of plain text
           voice: {
             languageCode: 'en-US',
-            name: 'en-US-Neural2-F', // Most natural voice with proper pauses
+            name: 'en-US-Studio-O', // Studio voice - most natural Gen 3 voice
             ssmlGender: 'FEMALE'
           },
           audioConfig: {
             audioEncoding: 'MP3',
             pitch: 0,
-            speakingRate: 0.95, // Slightly slower for natural pacing
-            volumeGainDb: 0,
-            effectsProfileId: ['headphone-class-device']
+            speakingRate: 1.0, // Normal pace - SSML handles pauses
+            volumeGainDb: 2.0, // Slightly louder for clarity
+            effectsProfileId: ['large-home-entertainment-class-device'] // Richer audio
           }
         })
       }
@@ -121,7 +152,7 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
     }
 
     const data = await response.json();
-    
+
     // Convert base64 audio to blob URL
     const audioData = atob(data.audioContent);
     const audioArray = new Uint8Array(audioData.length);
@@ -176,7 +207,7 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
     }
   };
 
-  // Generate speech with chunking
+  // Generate speech with streaming approach
   const generateSpeech = async () => {
     if (!apiKey) {
       console.error("ArticleNarrator: Google API key not configured");
@@ -198,34 +229,38 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       const cleanedText = cleanMarkdown(content);
       const fullText = `${title}. ${cleanedText}`;
       const chunks = splitIntoChunks(fullText);
-      
+
       setTotalChunks(chunks.length);
       audioQueueRef.current = [];
 
-      // Generate first chunk immediately for fast playback
-      const firstChunkUrl = await generateChunkAudio(chunks[0]);
-      audioQueueRef.current.push(firstChunkUrl);
-      
-      // Start playing first chunk
-      playNextChunk();
+      // Stream generation: generate and queue chunks progressively
+      const generateAndQueue = async () => {
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const chunkUrl = await generateChunkAudio(chunks[i]);
+            audioQueueRef.current.push(chunkUrl);
 
-      // Generate remaining chunks in parallel (but don't wait)
-      if (chunks.length > 1) {
-        Promise.all(chunks.slice(1).map(chunk => generateChunkAudio(chunk)))
-          .then(urls => {
-            audioQueueRef.current.push(...urls);
-          })
-          .catch(err => {
-            console.error('ArticleNarrator: Error generating chunks:', err);
-          });
-      }
+            // Start playing as soon as first chunk is ready
+            if (i === 0) {
+              playNextChunk();
+            }
+          } catch (err) {
+            console.error(`ArticleNarrator: Error generating chunk ${i}:`, err);
+            // Continue with remaining chunks even if one fails
+          }
+        }
+        isGeneratingRef.current = false;
+      };
 
-      isGeneratingRef.current = false;
+      // Start streaming generation (non-blocking)
+      generateAndQueue();
+
     } catch (err) {
       console.error('ArticleNarrator: Failed to generate speech:', err);
       setHasError(true);
       setIsLoading(false);
       setIsPlaying(false);
+      isGeneratingRef.current = false;
     }
   };
 
