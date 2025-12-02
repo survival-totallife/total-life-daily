@@ -22,14 +22,14 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
   // Get API key from environment
   const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
 
-  // Clean markdown and enhance with SSML for natural speech
+  // Clean markdown to plain text for narration
   const cleanMarkdown = (text: string): string => {
     return text
       // Remove markdown headers
       .replace(/#{1,6}\s+/g, '')
-      // Preserve bold/italic as emphasis markers (will convert to SSML later)
-      .replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>')
-      .replace(/(\*|_)(.*?)\1/g, '<em>$2</em>')
+      // Remove bold/italic (Studio voices have natural emphasis in prosody)
+      .replace(/(\*\*|__)(.*?)\1/g, '$2')
+      .replace(/(\*|_)(.*?)\1/g, '$2')
       // Remove links but keep text
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       // Remove images
@@ -48,27 +48,34 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       .trim();
   };
 
-  // Convert text to SSML for natural prosody and pauses
-  // Note: Studio voices don't support pitch attribute, but have excellent natural prosody
+  // Convert text to SSML for natural pauses
+  // Note: Studio voices only support <speak>, <break>, and <prosody rate>
+  // They have built-in natural emphasis and pitch variations
   const enhanceWithSSML = (text: string): string => {
+    // Escape XML special characters to prevent SSML parsing errors
+    const escapeXML = (str: string) => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
+
+    const escapedText = escapeXML(text);
+
     return `<speak>
       <prosody rate="medium">
-        ${text
-          // Paragraph breaks (800ms pause)
-          .replace(/\n\n/g, '<break time="800ms"/>\n\n')
-          // Period pauses (500ms)
-          .replace(/\./g, '.<break time="500ms"/>')
-          // Question/exclamation pauses (600ms)
-          .replace(/\?/g, '?<break time="600ms"/>')
-          .replace(/!/g, '!<break time="600ms"/>')
-          // Comma pauses (300ms)
-          .replace(/,/g, ',<break time="300ms"/>')
-          // Colon/semicolon pauses (400ms)
-          .replace(/:/g, ':<break time="400ms"/>')
-          .replace(/;/g, ';<break time="400ms"/>')
-          // Convert emphasis markers to SSML
-          .replace(/<strong>(.*?)<\/strong>/g, '<emphasis level="strong">$1</emphasis>')
-          .replace(/<em>(.*?)<\/em>/g, '<emphasis level="moderate">$1</emphasis>')
+        ${escapedText
+          // Paragraph breaks (700ms pause) - process first to avoid conflicts
+          .replace(/\n\n/g, '<break time="700ms"/>')
+          // Sentence-ending punctuation followed by space (natural sentence breaks)
+          .replace(/\.\s+/g, '. <break time="400ms"/>')
+          .replace(/\?\s+/g, '? <break time="400ms"/>')
+          .replace(/!\s+/g, '! <break time="400ms"/>')
+          // Comma pauses (short breath)
+          .replace(/,\s+/g, ', <break time="200ms"/>')
+          // Colon/semicolon pauses (medium pause)
+          .replace(/:\s+/g, ': <break time="300ms"/>')
+          .replace(/;\s+/g, '; <break time="300ms"/>')
         }
       </prosody>
     </speak>`;
@@ -137,7 +144,6 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
           },
           audioConfig: {
             audioEncoding: 'MP3',
-            pitch: 0,
             speakingRate: 1.0, // Normal pace - SSML handles pauses
             volumeGainDb: 2.0, // Slightly louder for clarity
             effectsProfileId: ['large-home-entertainment-class-device'] // Richer audio
