@@ -12,8 +12,12 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [currentChunk, setCurrentChunk] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  const audioQueueRef = useRef<string[]>([]);
+  const isGeneratingRef = useRef(false);
 
   // Get API key from environment
   const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -50,10 +54,129 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
+    
+    // Clean up chunk queue
+    audioQueueRef.current.forEach(url => URL.revokeObjectURL(url));
+    audioQueueRef.current = [];
+    
     setIsPlaying(false);
+    setCurrentChunk(0);
+    setTotalChunks(0);
+    isGeneratingRef.current = false;
   };
 
-  // Generate speech using Google Gemini TTS API
+  // Split text into chunks for faster processing
+  const splitIntoChunks = (text: string, chunkSize: number = 2000): string[] => {
+    const chunks: string[] = [];
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    let currentChunk = '';
+
+    for (const sentence of sentences) {
+      if ((currentChunk + sentence).length > chunkSize && currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += (currentChunk ? ' ' : '') + sentence;
+      }
+    }
+
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+
+    return chunks;
+  };
+
+  // Generate audio for a single chunk
+  const generateChunkAudio = async (text: string): Promise<string> => {
+    const response = await fetch(
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: { text },
+          voice: {
+            languageCode: 'en-US',
+            name: 'en-US-Neural2-F', // Most natural voice with proper pauses
+            ssmlGender: 'FEMALE'
+          },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            pitch: 0,
+            speakingRate: 0.95, // Slightly slower for natural pacing
+            volumeGainDb: 0,
+            effectsProfileId: ['headphone-class-device']
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('ArticleNarrator: TTS API error:', errorData);
+      throw new Error(errorData.error?.message || 'Failed to generate speech');
+    }
+
+    const data = await response.json();
+    
+    // Convert base64 audio to blob URL
+    const audioData = atob(data.audioContent);
+    const audioArray = new Uint8Array(audioData.length);
+    for (let i = 0; i < audioData.length; i++) {
+      audioArray[i] = audioData.charCodeAt(i);
+    }
+    const audioBlob = new Blob([audioArray], { type: 'audio/mp3' });
+    return URL.createObjectURL(audioBlob);
+  };
+
+  // Play next chunk in queue
+  const playNextChunk = async () => {
+    if (audioQueueRef.current.length === 0) {
+      setIsPlaying(false);
+      setCurrentChunk(0);
+      return;
+    }
+
+    const audioUrl = audioQueueRef.current.shift()!;
+    
+    // Clean up old audio URL
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+    }
+    audioUrlRef.current = audioUrl;
+
+    // Create and configure audio element
+    const audio = new Audio(audioUrl);
+    audio.volume = isMuted ? 0 : 1;
+    
+    audio.onended = () => {
+      setCurrentChunk(prev => prev + 1);
+      playNextChunk();
+    };
+
+    audio.onerror = (e) => {
+      console.error("ArticleNarrator: Audio playback error:", e);
+      setHasError(true);
+      setIsPlaying(false);
+    };
+
+    audioRef.current = audio;
+    
+    try {
+      await audio.play();
+      setIsPlaying(true);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('ArticleNarrator: Playback error:', err);
+      setHasError(true);
+      setIsLoading(false);
+    }
+  };
+
+  // Generate speech with chunking
   const generateSpeech = async () => {
     if (!apiKey) {
       console.error("ArticleNarrator: Google API key not configured");
@@ -61,82 +184,43 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       return;
     }
 
+    if (isGeneratingRef.current) {
+      return;
+    }
+
+    isGeneratingRef.current = true;
     setIsLoading(true);
     setHasError(false);
+    setCurrentChunk(0);
 
     try {
-      // Simply clean the markdown and read the article content directly
-      const textToRead = `${title}. ${cleanMarkdown(content)}`;
+      // Clean and split the content
+      const cleanedText = cleanMarkdown(content);
+      const fullText = `${title}. ${cleanedText}`;
+      const chunks = splitIntoChunks(fullText);
       
-      // Use Google Text-to-Speech API
-      const response = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            input: { text: textToRead },
-            voice: {
-              languageCode: 'en-US',
-              name: 'en-US-Neural2-F', // Most natural voice with conversational pauses
-              ssmlGender: 'FEMALE'
-            },
-            audioConfig: {
-              audioEncoding: 'MP3',
-              pitch: 0,
-              speakingRate: 0.92, // Natural conversational pace
-              volumeGainDb: 0,
-              effectsProfileId: ['headphone-class-device']
-            }
+      setTotalChunks(chunks.length);
+      audioQueueRef.current = [];
+
+      // Generate first chunk immediately for fast playback
+      const firstChunkUrl = await generateChunkAudio(chunks[0]);
+      audioQueueRef.current.push(firstChunkUrl);
+      
+      // Start playing first chunk
+      playNextChunk();
+
+      // Generate remaining chunks in parallel (but don't wait)
+      if (chunks.length > 1) {
+        Promise.all(chunks.slice(1).map(chunk => generateChunkAudio(chunk)))
+          .then(urls => {
+            audioQueueRef.current.push(...urls);
           })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('ArticleNarrator: TTS API error:', errorData);
-        throw new Error(errorData.error?.message || 'Failed to generate speech');
+          .catch(err => {
+            console.error('ArticleNarrator: Error generating chunks:', err);
+          });
       }
 
-      const data = await response.json();
-      
-      // Convert base64 audio to blob and create URL
-      const audioData = atob(data.audioContent);
-      const audioArray = new Uint8Array(audioData.length);
-      for (let i = 0; i < audioData.length; i++) {
-        audioArray[i] = audioData.charCodeAt(i);
-      }
-      const audioBlob = new Blob([audioArray], { type: 'audio/mp3' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      // Clean up old audio URL if exists
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-      }
-      audioUrlRef.current = audioUrl;
-
-      // Create and configure audio element
-      const audio = new Audio(audioUrl);
-      audio.volume = isMuted ? 0 : 1;
-      
-      audio.onended = () => {
-        stopAudio();
-      };
-
-      audio.onerror = (e) => {
-        console.error("ArticleNarrator: Audio playback error:", e);
-        setHasError(true);
-        setIsPlaying(false);
-      };
-
-      audioRef.current = audio;
-      
-      // Start playing
-      await audio.play();
-      setIsPlaying(true);
-      setIsLoading(false);
+      isGeneratingRef.current = false;
     } catch (err) {
       console.error('ArticleNarrator: Failed to generate speech:', err);
       setHasError(true);
@@ -194,6 +278,9 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
         URL.revokeObjectURL(audioUrlRef.current);
         audioUrlRef.current = null;
       }
+      // Clean up chunk queue
+      audioQueueRef.current.forEach(url => URL.revokeObjectURL(url));
+      audioQueueRef.current = [];
     };
   }, []);
 
@@ -248,7 +335,11 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
                 Article Narrator
               </div>
               <div className="text-xs text-gray-500">
-                {isPlaying ? "Playing..." : "Generating..."}
+                {isPlaying && totalChunks > 1 
+                  ? `Part ${currentChunk + 1} of ${totalChunks}` 
+                  : isPlaying 
+                  ? "Playing..." 
+                  : "Generating..."}
               </div>
             </div>
           </div>
