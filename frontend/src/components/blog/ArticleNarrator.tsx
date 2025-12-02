@@ -49,9 +49,10 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
   };
 
   // Convert text to SSML for natural prosody and pauses
+  // Note: Studio voices don't support pitch attribute, but have excellent natural prosody
   const enhanceWithSSML = (text: string): string => {
     return `<speak>
-      <prosody rate="medium" pitch="+1st">
+      <prosody rate="medium">
         ${text
           // Paragraph breaks (800ms pause)
           .replace(/\n\n/g, '<break time="800ms"/>\n\n')
