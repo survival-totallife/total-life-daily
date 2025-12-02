@@ -320,7 +320,7 @@ HOW TO STRUCTURE YOUR RESPONSE:
 CITATION RULES (only for information from the provided articles):
 - Use EXACTLY this format: [Source: PMID] where PMID is a single article ID.
 - CORRECT: "Studies show exercise improves sleep quality [Source: 22716179]."
-- WRONG: "[Source: 22716179, 36902073]" (NEVER combine PMIDs - use separate brackets)
+- WRONG: "[Source: 22716179, 36902073]" NEVER combine PMIDs!
 - Do NOT cite sources for general wellness knowledge that doesn't come from the articles.
 
 TONE AND STYLE:

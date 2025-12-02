@@ -550,7 +550,7 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
 
     const suggestedQuestions = [
         "Can exercise slow aging?",
-        "How can I sleep better at night?",
+        "Is coffee good or bad for health?",
         "Benefits of walking daily?",
         "What are the benefits of omega-3?",
     ];
