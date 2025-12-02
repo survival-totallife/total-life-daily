@@ -14,13 +14,77 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
+  const [isEnhancing, setIsEnhancing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const audioQueueRef = useRef<string[]>([]);
   const isGeneratingRef = useRef(false);
+  const enhancedContentRef = useRef<string | null>(null);
 
   // Get API key from environment
   const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+
+  // Enhance article content with AI narration
+  const enhanceContentWithAI = async (title: string, content: string): Promise<string> => {
+    try {
+      const cleanedContent = cleanMarkdown(content);
+
+      const prompt = `You are a calm, soothing wellness narrator with a warm feminine voice. Transform this article into a natural, engaging audio narration.
+
+Article Title: ${title}
+
+Article Content:
+${cleanedContent}
+
+Please create a natural audio narration that:
+1. Starts with a warm, welcoming introduction (e.g., "Hello, I'm here to share some insights about ${title}")
+2. Summarizes key points naturally and conversationally
+3. Adds smooth transitions between sections (e.g., "Now let's explore...", "Another important aspect is...")
+4. Makes the content feel personal and approachable
+5. Ends with a gentle, encouraging conclusion
+6. Keep it concise but meaningful - aim for a pleasant listening experience
+
+Write only the narration script - no stage directions, no [brackets], just natural speech. Use a calm, nurturing tone throughout.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2000,
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        console.error('ArticleNarrator: AI enhancement failed, using original content');
+        return `${title}. ${cleanedContent}`;
+      }
+
+      const data = await response.json();
+      const enhancedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (enhancedText) {
+        return enhancedText;
+      }
+
+      return `${title}. ${cleanedContent}`;
+    } catch (error) {
+      console.error('ArticleNarrator: AI enhancement error:', error);
+      return `${title}. ${cleanMarkdown(content)}`;
+    }
+  };
 
   // Clean markdown to plain text for narration
   const cleanMarkdown = (text: string): string => {
@@ -87,15 +151,17 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    
+
     // Clean up chunk queue
     audioQueueRef.current.forEach(url => URL.revokeObjectURL(url));
     audioQueueRef.current = [];
-    
+
     setIsPlaying(false);
     setCurrentChunk(0);
     setTotalChunks(0);
+    setIsEnhancing(false);
     isGeneratingRef.current = false;
+    // Keep enhanced content cached for faster replay
   };
 
   // Split text into optimal chunks (500-800 chars per chunk for faster streaming)
@@ -139,7 +205,7 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
           input: { ssml: ssmlText }, // Use SSML instead of plain text
           voice: {
             languageCode: 'en-US',
-            name: 'en-US-Studio-O', // Studio voice - most natural Gen 3 voice
+            name: 'en-US-Studio-M', // Studio-M: Calm, soothing female voice
             ssmlGender: 'FEMALE'
           },
           audioConfig: {
@@ -214,7 +280,7 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
     }
   };
 
-  // Generate speech with streaming approach
+  // Generate speech with streaming approach and AI enhancement
   const generateSpeech = async () => {
     if (!apiKey) {
       console.error("ArticleNarrator: Google API key not configured");
@@ -228,13 +294,22 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
 
     isGeneratingRef.current = true;
     setIsLoading(true);
+    setIsEnhancing(true);
     setHasError(false);
     setCurrentChunk(0);
 
     try {
-      // Clean and split the content
-      const cleanedText = cleanMarkdown(content);
-      const fullText = `${title}. ${cleanedText}`;
+      // Check if we already have enhanced content cached
+      let fullText = enhancedContentRef.current;
+
+      if (!fullText) {
+        // Enhance content with AI for natural narration
+        fullText = await enhanceContentWithAI(title, content);
+        enhancedContentRef.current = fullText;
+      }
+
+      setIsEnhancing(false);
+
       const chunks = splitIntoChunks(fullText);
 
       setTotalChunks(chunks.length);
@@ -266,6 +341,7 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
       console.error('ArticleNarrator: Failed to generate speech:', err);
       setHasError(true);
       setIsLoading(false);
+      setIsEnhancing(false);
       setIsPlaying(false);
       isGeneratingRef.current = false;
     }
@@ -349,7 +425,7 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
           </div>
           <div className="text-left flex-1">
             <div className="font-medium text-sm">Listen to this article</div>
-            <div className="text-xs opacity-90">Natural AI narration</div>
+            <div className="text-xs opacity-90">AI-enhanced narration with summaries</div>
           </div>
           <Play className="w-5 h-5 flex-shrink-0" />
         </button>
@@ -377,10 +453,12 @@ export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
                 Article Narrator
               </div>
               <div className="text-xs text-gray-500">
-                {isPlaying && totalChunks > 1 
-                  ? `Part ${currentChunk + 1} of ${totalChunks}` 
-                  : isPlaying 
-                  ? "Playing..." 
+                {isEnhancing
+                  ? "Enhancing with AI..."
+                  : isPlaying && totalChunks > 1
+                  ? `Part ${currentChunk + 1} of ${totalChunks}`
+                  : isPlaying
+                  ? "Playing..."
                   : "Generating..."}
               </div>
             </div>
