@@ -37,12 +37,13 @@ Article Content:
 ${cleanedContent}
 
 Please create a natural audio narration that:
-1. Starts with a warm, welcoming introduction (e.g., "Hello, I'm here to share some insights about ${title}")
-2. Summarizes key points naturally and conversationally
-3. Adds smooth transitions between sections (e.g., "Now let's explore...", "Another important aspect is...")
-4. Makes the content feel personal and approachable
-5. Ends with a gentle, encouraging conclusion
-6. Keep it concise but meaningful - aim for a pleasant listening experience
+1. Starts with a warm, welcoming introduction that mentions the topic naturally (e.g., "Hello, I'm here to share some insights about [topic]" or "Welcome, today we're exploring [topic]")
+2. Do NOT repeat the exact title word-for-word at the start - weave it naturally into your greeting
+3. Summarizes key points naturally and conversationally
+4. Adds smooth transitions between sections (e.g., "Now let's explore...", "Another important aspect is...")
+5. Makes the content feel personal and approachable
+6. Ends with a gentle, encouraging conclusion
+7. Keep it concise but meaningful - aim for a pleasant listening experience
 
 Write only the narration script - no stage directions, no [brackets], just natural speech. Use a calm, nurturing tone throughout.`;
 
@@ -385,8 +386,11 @@ Write only the narration script - no stage directions, no [brackets], just natur
     setIsMuted(!isMuted);
   };
 
-  // Cleanup on unmount
+  // Cleanup on unmount and clear cache when content/title changes
   useEffect(() => {
+    // Clear cached enhanced content when article changes
+    enhancedContentRef.current = null;
+
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -400,7 +404,7 @@ Write only the narration script - no stage directions, no [brackets], just natur
       audioQueueRef.current.forEach(url => URL.revokeObjectURL(url));
       audioQueueRef.current = [];
     };
-  }, []);
+  }, [title, content]);
 
   // Don't show if no API key or if there's an error
   if (!apiKey || hasError) {
