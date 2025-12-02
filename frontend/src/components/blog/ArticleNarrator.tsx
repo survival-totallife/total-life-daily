@@ -205,12 +205,12 @@ Write only the narration script - no stage directions, no [brackets], just natur
           input: { ssml: ssmlText }, // Use SSML instead of plain text
           voice: {
             languageCode: 'en-US',
-            name: 'en-US-Studio-M', // Studio-M: Calm, soothing female voice
-            ssmlGender: 'FEMALE'
+            name: 'en-US-Studio-O' // Studio-O: Natural, warm voice
+            // Note: Don't specify ssmlGender for Studio voices - use the voice's natural gender
           },
           audioConfig: {
             audioEncoding: 'MP3',
-            speakingRate: 1.0, // Normal pace - SSML handles pauses
+            speakingRate: 0.92, // Slightly slower for calm, soothing delivery
             volumeGainDb: 2.0, // Slightly louder for clarity
             effectsProfileId: ['large-home-entertainment-class-device'] // Richer audio
           }
