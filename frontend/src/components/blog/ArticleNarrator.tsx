@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX, Pause, Play, Loader2 } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, Loader2, RotateCcw } from "lucide-react";
 
 interface ArticleNarratorProps {
   title: string;
   content: string;
-  excerpt?: string | null;
 }
 
-export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProps) {
+export function ArticleNarrator({ title, content }: ArticleNarratorProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -45,45 +44,13 @@ export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProp
       .trim();
   };
 
-  // Create narrative summary of the article
-  const createNarrative = (): string => {
-    const cleanContent = cleanMarkdown(content);
-    
-    // Create a natural introduction
-    let narrative = `Hello, I'm your wellness guide. Today, I'll be sharing insights about: ${title}. `;
-    
-    // Add excerpt if available
-    if (excerpt) {
-      narrative += `${excerpt}. `;
+  // Stop and reset audio
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-    
-    // Add a brief pause marker and introduction to main content
-    narrative += `Let's dive into the key points. `;
-    
-    // Split content into sections and summarize
-    const sections = cleanContent.split('\n\n').filter(s => s.trim().length > 0);
-    
-    sections.forEach((section, index) => {
-      // Add natural transitions
-      if (index > 0 && index < sections.length) {
-        const transitions = [
-          'Moving on, ',
-          'Additionally, ',
-          'Another important point: ',
-          'Here\'s something interesting: ',
-          'Furthermore, ',
-          'It\'s also worth noting that ',
-        ];
-        narrative += transitions[index % transitions.length];
-      }
-      
-      narrative += `${section.substring(0, 400)}. `;
-    });
-    
-    // Add conclusion
-    narrative += `I hope you found these insights valuable. Remember to consult with healthcare professionals for personalized advice. Thank you for listening!`;
-    
-    return narrative;
+    setIsPlaying(false);
   };
 
   // Generate speech using Google Gemini TTS API
@@ -98,7 +65,8 @@ export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProp
     setHasError(false);
 
     try {
-      const narrative = createNarrative();
+      // Simply clean the markdown and read the article content directly
+      const textToRead = `${title}. ${cleanMarkdown(content)}`;
       
       // Use Google Text-to-Speech API
       const response = await fetch(
@@ -109,16 +77,16 @@ export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProp
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            input: { text: narrative },
+            input: { text: textToRead },
             voice: {
               languageCode: 'en-US',
-              name: 'en-US-Journey-F', // Natural, warm female voice
+              name: 'en-US-Neural2-F', // Most natural voice with conversational pauses
               ssmlGender: 'FEMALE'
             },
             audioConfig: {
               audioEncoding: 'MP3',
               pitch: 0,
-              speakingRate: 0.95, // Slightly slower for clarity
+              speakingRate: 0.92, // Natural conversational pace
               volumeGainDb: 0,
               effectsProfileId: ['headphone-class-device']
             }
@@ -154,7 +122,7 @@ export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProp
       audio.volume = isMuted ? 0 : 1;
       
       audio.onended = () => {
-        setIsPlaying(false);
+        stopAudio();
       };
 
       audio.onerror = (e) => {
@@ -177,18 +145,34 @@ export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProp
     }
   };
 
-  // Handle play/pause
+
+
+  // Handle play/pause/restart
   const togglePlayback = async () => {
-    if (isPlaying && audioRef.current) {
-      audioRef.current.pause();
+    try {
+      if (isPlaying && audioRef.current) {
+        // Pause current playback
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else if (audioRef.current && !audioRef.current.ended) {
+        // Resume paused audio
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } else {
+        // Generate new audio (first time or after audio ended)
+        await generateSpeech();
+      }
+    } catch (error) {
+      console.error('ArticleNarrator: Playback error:', error);
+      setHasError(true);
       setIsPlaying(false);
-    } else if (audioRef.current && !isPlaying) {
-      await audioRef.current.play();
-      setIsPlaying(true);
-    } else {
-      // Generate new audio
-      await generateSpeech();
     }
+  };
+
+  // Handle restart
+  const handleRestart = async () => {
+    stopAudio();
+    await generateSpeech();
   };
 
   // Handle mute/unmute
@@ -289,6 +273,20 @@ export function ArticleNarrator({ title, content, excerpt }: ArticleNarratorProp
                 {isLoading ? "Loading..." : isPlaying ? "Pause" : "Listen"}
               </span>
             </button>
+
+            {/* Restart Button */}
+            {isPlaying && (
+              <motion.button
+                onClick={handleRestart}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Restart narration"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+              >
+                <RotateCcw className="w-5 h-5 text-gray-600" />
+              </motion.button>
+            )}
 
             {/* Mute Button */}
             {isPlaying && (
