@@ -549,10 +549,10 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps): JSX.Elem
     };
 
     const suggestedQuestions = [
-        "What foods improve brain health?",
+        "Can exercise slow aging?",
         "How can I sleep better at night?",
         "Benefits of walking daily?",
-        "How to reduce stress naturally?",
+        "What are the benefits of omega-3?",
     ];
 
     return (
